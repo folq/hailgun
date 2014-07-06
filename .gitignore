@@ -1,3 +1,9 @@
 # Temp Files
 *~
 .*.sw[a-p]
+
+# Build Files
+/.cabal-sandbox
+/cabal.sandbox.config
+/dist
+
