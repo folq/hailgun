@@ -58,6 +58,8 @@ library
   
   -- Other library packages from which modules are imported.
   build-depends:       base >=4.6 && <4.7
+                       , bytestring >= 0.9
+                       , email-validate ==2.0.*
   
   -- Directories containing source files.
   -- hs-source-dirs:      
