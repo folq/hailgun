@@ -7,3 +7,5 @@
 /cabal.sandbox.config
 /dist
 
+# Config File
+/hailgun.send.conf

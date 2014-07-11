@@ -3,6 +3,8 @@ module Mail.Hailgun
    , MessageSubject
    , MessageContent(..)
    , MessageRecipients(..)
+   , HailgunContext(..)
+   , sendEmail
    ) where
 
 import Control.Applicative ((<$>), (<*>))
