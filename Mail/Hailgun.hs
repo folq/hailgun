@@ -9,6 +9,7 @@ module Mail.Hailgun
    , HailgunContext(..)
    , hailgunMessage
    , sendEmail
+   , HailgunSendResponse(..)
    ) where
 
 import Control.Applicative ((<$>), (<*>))
@@ -149,7 +150,7 @@ sendEmail context message = do
          c         -> retError . unexpectedError $ c
    where
       url = "https://api.mailgun.net/v2/" ++ hailgunDomain context ++ "/messages"
-      contentType = undefined
+      contentType = "application/x-www-form-urlencoded"
       body = urlEncodeVars . toPostVars $ message
       retError = return . Left
 

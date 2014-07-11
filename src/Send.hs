@@ -81,7 +81,13 @@ isFrom _ = False
 sendMessage :: HailgunMessage -> IO ()
 sendMessage message = do
    hailgunContext <- loadHailgunContext hailgunConfFile
-   return ()
+   response <- sendEmail hailgunContext message
+   case response of
+      Left error -> putStrLn $ "Failed to send email: " ++ error
+      Right result -> do
+         putStrLn "Sent Email!"
+         putStrLn $ "Id: " ++ hsrId result
+         putStrLn $ "Message: " ++ hsrMessage result
 
 usageMessage = "Send emails using the Mailgun api."
 
