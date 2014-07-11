@@ -1,9 +1,13 @@
 module Mail.Hailgun 
    ( HailgunMessage
+   , HailgunErrorMessage
    , MessageSubject
+   , UnverifiedEmailAddress
    , MessageContent(..)
    , MessageRecipients(..)
+   , emptyMessageRecipients
    , HailgunContext(..)
+   , hailgunMessage
    , sendEmail
    ) where
 
@@ -11,10 +15,11 @@ import Control.Applicative ((<$>), (<*>))
 import Control.Monad (mzero)
 import Data.Aeson
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy.Char8 as BLC
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Text as T
 import Text.Email.Validate
-import Network.HTTP (simpleHTTP, postRequestWithBody, urlEncodeVars, rspCode)
+import Network.HTTP (simpleHTTP, postRequestWithBody, urlEncodeVars, rspCode, rspBody)
 
 {- 
  - The basic rest API's look like this when used in curl:
@@ -62,7 +67,10 @@ data HailgunMessage = HailgunMessage
    -- TODO custom mime header support
    -- TODO custome message data support
 
-data MessageRecipients = MessageRepipients 
+emptyMessageRecipients :: MessageRecipients
+emptyMessageRecipients = MessageRecipients [] [] []
+
+data MessageRecipients = MessageRecipients 
    { recipientsTo    :: [UnverifiedEmailAddress]
    , recipientsCC    :: [UnverifiedEmailAddress]
    , recipientsBCC   :: [UnverifiedEmailAddress]
@@ -130,17 +138,21 @@ sendEmail context message = do
    case result of
       Left connectionError -> error "The connection failed"
       Right response -> case rspCode response of
-         (2, 0, 0) -> error "Request successful but no response gathered"
-         (4, 0, 0) -> error "Bad Request - Often missing a required parameter"
-         (4, 0, 1) -> error "Unauthorized - No valid API key provided"
-         (4, 0, 2) -> error "Request Failed - Parameters were valid but request failed"
-         (4, 0, 4) -> error "Not Found - The requested item doesn’t exist"
-         (5, 0, x) -> if x `elem` (0 : [2..4]) 
-                        then error "Server Errors - something is wrong on Mailgun’s end"
-                        else error "NonStandard Error"
-         (x, y, z) -> error "NonStandard Error"
+         (2, 0, 0) -> return . eitherDecode' . BLC.pack . rspBody $ response
+         (4, 0, 0) -> retError "Bad Request - Often missing a required parameter"
+         (4, 0, 1) -> retError "Unauthorized - No valid API key provided"
+         (4, 0, 2) -> retError "Request Failed - Parameters were valid but request failed"
+         (4, 0, 4) -> retError "Not Found - The requested item doesn’t exist"
+         c@(5, 0, x) -> if x `elem` (0 : [2..4]) 
+                        then retError "Server Errors - something is wrong on Mailgun’s end"
+                        else retError . unexpectedError $ c
+         c         -> retError . unexpectedError $ c
    where
       url = "https://api.mailgun.net/v2/" ++ hailgunDomain context ++ "/messages"
       contentType = undefined
       body = urlEncodeVars . toPostVars $ message
+      retError = return . Left
+
+      unexpectedError x = "Unexpected Non-Standard Mailgun Error: " ++ (show . toI $ x) 
+      toI (x, y, z) = x * 100 + y * 10 + z
 
