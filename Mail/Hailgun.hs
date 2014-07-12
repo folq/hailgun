@@ -103,7 +103,7 @@ hailgunMessage subject content sender recipients = do
 
 toPostVars :: HailgunMessage -> [(BC.ByteString, BC.ByteString)]
 toPostVars message = 
-   [ (BC.pack "from", BC.pack . show . messageFrom $ message)
+   [ (BC.pack "from", toByteString . messageFrom $ message)
    , (BC.pack "subject", BC.pack $ messageSubject message)
    ] ++ to 
    ++ cc 
@@ -119,7 +119,7 @@ toPostVars message =
       fromContent th@(TextAndHTML {}) = (BC.pack "html", htmlContent th) : fromContent (TextOnly . textContent $ th)
 
       convertEmails :: BC.ByteString -> [EmailAddress] -> [(BC.ByteString, BC.ByteString)]
-      convertEmails prefix = fmap ((,) prefix . BC.pack . show)
+      convertEmails prefix = fmap ((,) prefix . toByteString)
 
 -- Use this method of the HTTP library to convert this into a Request body:
 -- https://hackage.haskell.org/package/HTTP-4000.2.17/docs/Network-HTTP-Base.html#v:urlEncodeVars
@@ -165,6 +165,7 @@ sendEmail context message = do
    requestWithBody <- encodeFormData (toPostVars message) request
    let authedRequest = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context) requestWithBody
    putStrLn . show $ authedRequest
+   print $ toPostVars message
    response <- withManager tlsManagerSettings (httpLbs authedRequest)
    case responseStatus response of
       (NT.Status { NT.statusCode = 200 }) -> return . convertGood . eitherDecode' . responseBody $ response
@@ -179,8 +180,6 @@ sendEmail context message = do
       c         -> retError . unexpectedError $ c
    where
       url = "https://api.mailgun.net/v2/" ++ hailgunDomain context ++ "/messages"
-      headers = [ (NH.hContentType, BC.pack contentType) ]
-      contentType = "multipart/form-data"
       retError = return . Left . toHailgunError
 
       serverError = retError "Server Errors - something is wrong on Mailgun’s end"
