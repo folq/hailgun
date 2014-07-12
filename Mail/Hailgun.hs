@@ -10,6 +10,7 @@ module Mail.Hailgun
    , hailgunMessage
    , sendEmail
    , HailgunSendResponse(..)
+   , HailgunErrorResponse(..)
    ) where
 
 import Control.Applicative ((<$>), (<*>))
@@ -133,10 +134,22 @@ data HailgunSendResponse = HailgunSendResponse
    , hsrId      :: String
    }
 
+data HailgunErrorResponse = HailgunErrorResponse
+   { herMessage :: String
+   }
+
+toHailgunError :: String -> HailgunErrorResponse
+toHailgunError = HailgunErrorResponse
+
 instance FromJSON HailgunSendResponse where
    parseJSON (Object v) = HailgunSendResponse
       <$> v .: T.pack "message"
       <*> v .: T.pack "id"
+   parseJSON _ = mzero
+
+instance FromJSON HailgunErrorResponse where
+   parseJSON (Object v) = HailgunErrorResponse
+      <$> v .: T.pack "message"
    parseJSON _ = mzero
 
 encodeFormData :: MonadIO m => [(BC.ByteString, BC.ByteString)] -> Request -> m Request
@@ -145,20 +158,20 @@ encodeFormData fields = formDataBody (map toPart fields)
       toPart :: (BC.ByteString, BC.ByteString) -> Part
       toPart (name, content) = partBS (T.pack . BC.unpack $ name) content
 
-sendEmail :: HailgunContext -> HailgunMessage -> IO (Either HailgunErrorMessage HailgunSendResponse)
+sendEmail :: HailgunContext -> HailgunMessage -> IO (Either HailgunErrorResponse HailgunSendResponse)
 sendEmail context message = do
    initRequest <- parseUrl url
-   let request = initRequest { method = NM.methodPost }
+   let request = initRequest { method = NM.methodPost, checkStatus = \_ _ _ -> Nothing }
    requestWithBody <- encodeFormData (toPostVars message) request
    let authedRequest = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context) requestWithBody
    putStrLn . show $ authedRequest
    response <- withManager tlsManagerSettings (httpLbs authedRequest)
    case responseStatus response of
-      (NT.Status { NT.statusCode = 200 }) -> return . eitherDecode' . responseBody $ response
-      (NT.Status { NT.statusCode = 400 }) -> retError "Bad Request - Often missing a required parameter"
-      (NT.Status { NT.statusCode = 401 }) -> retError "Unauthorized - No valid API key provided"
-      (NT.Status { NT.statusCode = 402 }) -> retError "Request Failed - Parameters were valid but request failed"
-      (NT.Status { NT.statusCode = 404 }) -> retError "Not Found - The requested item doesn’t exist"
+      (NT.Status { NT.statusCode = 200 }) -> return . convertGood . eitherDecode' . responseBody $ response
+      (NT.Status { NT.statusCode = 400 }) -> return . Left . convertBad . eitherDecode' . responseBody $ response
+      (NT.Status { NT.statusCode = 401 }) -> return . Left . convertBad . eitherDecode' . responseBody $ response
+      (NT.Status { NT.statusCode = 402 }) -> return . Left . convertBad . eitherDecode' . responseBody $ response
+      (NT.Status { NT.statusCode = 404 }) -> return . Left . convertBad . eitherDecode' . responseBody $ response
       (NT.Status { NT.statusCode = 500 }) -> serverError
       (NT.Status { NT.statusCode = 502 }) -> serverError
       (NT.Status { NT.statusCode = 503 }) -> serverError
@@ -168,9 +181,17 @@ sendEmail context message = do
       url = "https://api.mailgun.net/v2/" ++ hailgunDomain context ++ "/messages"
       headers = [ (NH.hContentType, BC.pack contentType) ]
       contentType = "multipart/form-data"
-      retError = return . Left
+      retError = return . Left . toHailgunError
 
       serverError = retError "Server Errors - something is wrong on Mailgun’s end"
       unexpectedError x = "Unexpected Non-Standard Mailgun Error: " ++ (show x) 
       toI (x, y, z) = x * 100 + y * 10 + z
+
+convertGood :: Either String HailgunSendResponse -> Either HailgunErrorResponse HailgunSendResponse
+convertGood (Left error) = Left . toHailgunError $ error
+convertGood (Right response) = Right response
+
+convertBad :: Either String HailgunErrorResponse -> HailgunErrorResponse
+convertBad (Left error) = toHailgunError $ error
+convertBad (Right e) = e
 

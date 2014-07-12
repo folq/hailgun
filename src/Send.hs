@@ -83,7 +83,7 @@ sendMessage message = do
    hailgunContext <- loadHailgunContext hailgunConfFile
    response <- sendEmail hailgunContext message
    case response of
-      Left error -> putStrLn $ "Failed to send email: " ++ error
+      Left error -> putStrLn $ "Failed to send email: " ++ herMessage error
       Right result -> do
          putStrLn "Sent Email!"
          putStrLn $ "Id: " ++ hsrId result
