@@ -61,8 +61,10 @@ library
                        , bytestring >= 0.9
                        , aeson == 0.7.*
                        , text == 0.11.*
-                       , HTTP == 4000.2.*
+                       , transformers == 0.3.*
+                       , http-client == 0.3.*
                        , email-validate ==2.0.*
+                       , http-types == 0.8.*
   
   -- Directories containing source files.
   -- hs-source-dirs:      

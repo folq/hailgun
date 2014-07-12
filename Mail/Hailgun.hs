@@ -14,13 +14,18 @@ module Mail.Hailgun
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad (mzero)
+import Control.Monad.IO.Class
 import Data.Aeson
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy.Char8 as BLC
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Text as T
 import Text.Email.Validate
-import Network.HTTP (simpleHTTP, postRequestWithBody, urlEncodeVars, rspCode, rspBody)
+import Network.HTTP.Client (Request(..), RequestBody(..), parseUrl, httpLbs, withManager, defaultManagerSettings, responseStatus, responseBody, applyBasicAuth)
+import Network.HTTP.Client.MultipartFormData (Part(..), formDataBody, partBS)
+import qualified Network.HTTP.Types.Status as NT
+import qualified Network.HTTP.Types.Method as NM
+import qualified Network.HTTP.Types.Header as NH
 
 {- 
  - The basic rest API's look like this when used in curl:
@@ -94,25 +99,25 @@ hailgunMessage subject content sender recipients = do
       , messageBCC = bcc
       }
 
-toPostVars :: HailgunMessage -> [(String, String)]
+toPostVars :: HailgunMessage -> [(BC.ByteString, BC.ByteString)]
 toPostVars message = 
-   [ ("from", show . messageFrom $ message)
-   , ("subject", messageSubject message)
+   [ (BC.pack "from", BC.pack . show . messageFrom $ message)
+   , (BC.pack "subject", BC.pack $ messageSubject message)
    ] ++ to 
    ++ cc 
    ++ bcc 
    ++ fromContent (messageContent message)
    where
-      to = convertEmails "to" . messageTo $ message
-      cc = convertEmails "cc" . messageCC $ message
-      bcc = convertEmails "bcc" . messageBCC $ message
+      to = convertEmails (BC.pack "to") . messageTo $ message
+      cc = convertEmails (BC.pack "cc") . messageCC $ message
+      bcc = convertEmails (BC.pack "bcc") . messageBCC $ message
 
-      fromContent :: MessageContent -> [(String, String)]
-      fromContent t@(TextOnly _) = [ ("text", BC.unpack $ textContent t) ]
-      fromContent th@(TextAndHTML {}) = ("html", BC.unpack $ htmlContent th) : fromContent (TextOnly . textContent $ th)
+      fromContent :: MessageContent -> [(BC.ByteString, BC.ByteString)]
+      fromContent t@(TextOnly _) = [ (BC.pack "text", textContent t) ]
+      fromContent th@(TextAndHTML {}) = (BC.pack "html", htmlContent th) : fromContent (TextOnly . textContent $ th)
 
-      convertEmails :: String -> [EmailAddress] -> [(String, String)]
-      convertEmails prefix = fmap ((,) prefix . show)
+      convertEmails :: BC.ByteString -> [EmailAddress] -> [(BC.ByteString, BC.ByteString)]
+      convertEmails prefix = fmap ((,) prefix . BC.pack . show)
 
 -- Use this method of the HTTP library to convert this into a Request body:
 -- https://hackage.haskell.org/package/HTTP-4000.2.17/docs/Network-HTTP-Base.html#v:urlEncodeVars
@@ -133,27 +138,38 @@ instance FromJSON HailgunSendResponse where
       <*> v .: T.pack "id"
    parseJSON _ = mzero
 
+encodeFormData :: MonadIO m => [(BC.ByteString, BC.ByteString)] -> Request -> m Request
+encodeFormData fields = formDataBody (map toPart fields)
+   where
+      toPart :: (BC.ByteString, BC.ByteString) -> Part
+      toPart (name, content) = partBS (T.pack . BC.unpack $ name) content
+
 sendEmail :: HailgunContext -> HailgunMessage -> IO (Either HailgunErrorMessage HailgunSendResponse)
 sendEmail context message = do
-   result <- simpleHTTP (postRequestWithBody url contentType body)
-   case result of
-      Left connectionError -> error "The connection failed"
-      Right response -> case rspCode response of
-         (2, 0, 0) -> return . eitherDecode' . BLC.pack . rspBody $ response
-         (4, 0, 0) -> retError "Bad Request - Often missing a required parameter"
-         (4, 0, 1) -> retError "Unauthorized - No valid API key provided"
-         (4, 0, 2) -> retError "Request Failed - Parameters were valid but request failed"
-         (4, 0, 4) -> retError "Not Found - The requested item doesn’t exist"
-         c@(5, 0, x) -> if x `elem` (0 : [2..4]) 
-                        then retError "Server Errors - something is wrong on Mailgun’s end"
-                        else retError . unexpectedError $ c
-         c         -> retError . unexpectedError $ c
+   initRequest <- parseUrl url
+   let request = initRequest { method = NM.methodPost }
+   requestWithBody <- encodeFormData (toPostVars message) request
+   let authedRequest = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context) requestWithBody
+   putStrLn . show $ authedRequest
+   response <- withManager defaultManagerSettings (httpLbs authedRequest)
+   case responseStatus response of
+      (NT.Status { NT.statusCode = 200 }) -> return . eitherDecode' . responseBody $ response
+      (NT.Status { NT.statusCode = 400 }) -> retError "Bad Request - Often missing a required parameter"
+      (NT.Status { NT.statusCode = 401 }) -> retError "Unauthorized - No valid API key provided"
+      (NT.Status { NT.statusCode = 402 }) -> retError "Request Failed - Parameters were valid but request failed"
+      (NT.Status { NT.statusCode = 404 }) -> retError "Not Found - The requested item doesn’t exist"
+      (NT.Status { NT.statusCode = 500 }) -> serverError
+      (NT.Status { NT.statusCode = 502 }) -> serverError
+      (NT.Status { NT.statusCode = 503 }) -> serverError
+      (NT.Status { NT.statusCode = 504 }) -> serverError
+      c         -> retError . unexpectedError $ c
    where
       url = "https://api.mailgun.net/v2/" ++ hailgunDomain context ++ "/messages"
-      contentType = "application/x-www-form-urlencoded"
-      body = urlEncodeVars . toPostVars $ message
+      headers = [ (NH.hContentType, BC.pack contentType) ]
+      contentType = "multipart/form-data"
       retError = return . Left
 
-      unexpectedError x = "Unexpected Non-Standard Mailgun Error: " ++ (show . toI $ x) 
+      serverError = retError "Server Errors - something is wrong on Mailgun’s end"
+      unexpectedError x = "Unexpected Non-Standard Mailgun Error: " ++ (show x) 
       toI (x, y, z) = x * 100 + y * 10 + z
 
