@@ -23,6 +23,7 @@ import qualified Data.Text as T
 import Text.Email.Validate
 import Network.HTTP.Client (Request(..), RequestBody(..), parseUrl, httpLbs, withManager, defaultManagerSettings, responseStatus, responseBody, applyBasicAuth)
 import Network.HTTP.Client.MultipartFormData (Part(..), formDataBody, partBS)
+import Network.HTTP.Client.TLS (tlsManagerSettings)
 import qualified Network.HTTP.Types.Status as NT
 import qualified Network.HTTP.Types.Method as NM
 import qualified Network.HTTP.Types.Header as NH
@@ -151,7 +152,7 @@ sendEmail context message = do
    requestWithBody <- encodeFormData (toPostVars message) request
    let authedRequest = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context) requestWithBody
    putStrLn . show $ authedRequest
-   response <- withManager defaultManagerSettings (httpLbs authedRequest)
+   response <- withManager tlsManagerSettings (httpLbs authedRequest)
    case responseStatus response of
       (NT.Status { NT.statusCode = 200 }) -> return . eitherDecode' . responseBody $ response
       (NT.Status { NT.statusCode = 400 }) -> retError "Bad Request - Often missing a required parameter"
