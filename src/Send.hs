@@ -2,9 +2,11 @@ module Main where
 
 import Mail.Hailgun
 
+import Control.Applicative ((<$>))
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import Data.Configurator (load, require, Worth(..))
+import qualified Data.List as DL
 import qualified Data.Text as T
 import System.Console.GetOpt (getOpt, OptDescr(..), ArgDescr(..), ArgOrder(..), usageInfo)
 import System.Environment (getArgs)
@@ -19,6 +21,8 @@ data Flag
    | From { email :: UnverifiedEmailAddress }
    | To { email :: UnverifiedEmailAddress }
    | Subject { subject :: MessageSubject }
+   | TextMessage { textFilePath :: FilePath }
+   | HTMLMessage { htmlFilePath :: FilePath }
    deriving (Eq, Show)
    
 options :: [OptDescr Flag]
@@ -28,6 +32,8 @@ options =
    , Option ['t'] ["to"]      (ReqArg toP "them@test.test")    "You will need to provide atleast one person that you wish to send the email to."
    -- TODO Confirm that this is required.
    , Option ['s'] ["subject"] (ReqArg Subject "subject")      "You need to send an email subject."
+   , Option ['x'] ["text"]    (ReqArg TextMessage "email.text")   "You need to provide a text email file at a minimum."
+   , Option ['m'] ["html"]    (ReqArg HTMLMessage "email.html")   "You can provide a HTML version of the email to send."
    ]
    where
       fromP = From . BC.pack
@@ -49,10 +55,10 @@ loadHailgunContext configFile = do
       , hailgunApiKey = apiKey
       }
 
-handleSend :: [Flag] -> Either HailgunErrorMessage HailgunMessage
-handleSend flags = do
+handleSend :: [Flag] -> MessageContent -> Either HailgunErrorMessage HailgunMessage
+handleSend flags emailBody = do
    case (unverifiedFrom, subjects) of
-      ([from], [subject]) -> hailgunMessage subject dummyContent from simpleRecipients
+      ([from], [subject]) -> hailgunMessage subject emailBody from simpleRecipients
       ([], []) -> fail "You need to provide both a from address and a subject to send an email."
       (xs, []) -> fail "You have more than one from address and only one is allowed"
       ([], xs) -> fail "You have more than one subject and only one is allowed"
@@ -63,8 +69,6 @@ handleSend flags = do
       subjects = fmap subject . filter isSubject $ flags
 
       simpleRecipients = emptyMessageRecipients { recipientsTo = unverifiedTo }
-
-      dummyContent = TextOnly . BC.pack $ "TODO let this be supplied in the command line arguments."
 
 isSubject :: Flag -> Bool
 isSubject (Subject _) = True
@@ -77,6 +81,14 @@ isTo _ = False
 isFrom :: Flag -> Bool
 isFrom (From _) = True
 isFrom _ = False
+
+isTextMessage :: Flag -> Bool
+isTextMessage (TextMessage _) = True
+isTextMessage _ = False
+
+isHtmlMessage :: Flag -> Bool
+isHtmlMessage (HTMLMessage _) = True
+isHtmlMessage _ = False
 
 sendMessage :: HailgunMessage -> IO ()
 sendMessage message = do
@@ -91,12 +103,29 @@ sendMessage message = do
 
 usageMessage = "Send emails using the Mailgun api."
 
+main :: IO ()
 main = do
    arguments <- getArgs
    case getOpt Permute options arguments of
       (flags, _, []) -> if Help `elem` flags
          then putStrLn $ usageInfo usageMessage options
-         else case handleSend flags of
-            (Right message) -> sendMessage message
-            (Left error) -> putStrLn $ "Error generating mail: " ++ error
+         else do
+            potentialEmailBody <- prepareEmailBody flags
+            case potentialEmailBody of
+               Nothing -> putStrLn $ "At the very least you must provide a text file to send as the email body."
+               (Just messageContent) -> case (handleSend flags messageContent) of
+                  Left error -> putStrLn $ "Error generating mail: " ++ error 
+                  Right message -> sendMessage message
       (_, _, xs) -> error "Got some errors when parsing the command line options. TODO show nicer"
+
+prepareEmailBody :: [Flag] -> IO (Maybe MessageContent)
+prepareEmailBody flags = case (DL.find isTextMessage flags, DL.find isHtmlMessage flags) of
+   (Nothing, _) -> return Nothing
+   (Just (TextMessage textPath), Nothing) -> Just . TextOnly <$> BC.readFile textPath
+   (Just (TextMessage textPath), Just (HTMLMessage htmlPath)) -> do
+      textContents <- BC.readFile textPath
+      htmlContents <- BC.readFile htmlPath
+      return . Just $ TextAndHTML 
+         { textContent = textContents
+         , htmlContent = htmlContents
+         }
