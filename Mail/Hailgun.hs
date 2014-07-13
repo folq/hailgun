@@ -164,8 +164,6 @@ sendEmail context message = do
    let request = initRequest { method = NM.methodPost, checkStatus = \_ _ _ -> Nothing }
    requestWithBody <- encodeFormData (toPostVars message) request
    let authedRequest = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context) requestWithBody
-   putStrLn . show $ authedRequest
-   print $ toPostVars message
    response <- withManager tlsManagerSettings (httpLbs authedRequest)
    case responseStatus response of
       (NT.Status { NT.statusCode = 200 }) -> return . convertGood . eitherDecode' . responseBody $ response
