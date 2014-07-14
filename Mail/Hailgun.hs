@@ -43,17 +43,35 @@ import qualified Network.HTTP.Types.Header as NH
  - This is what we need to emulate with this library.
  -}
 
-type UnverifiedEmailAddress = B.ByteString
-type MessageSubject = String
+type UnverifiedEmailAddress = B.ByteString -- ^ Represents an email address that is not yet verified.
+type MessageSubject = String -- ^ Represents a message subject.
+
+-- | Any email content that you wish to send should be encoded into these types before it is sent.
+-- Currently, according to the API, you should always send a Text Only part in the email and you can
+-- optionally add a nicely formatted HTML version of that email to the sent message. 
+-- 
+-- @
+-- It is best to send multi-part emails using both text and HTML or text only. Sending HTML only
+-- email is not well received by ESPs.
+-- @
+-- (<http://documentation.mailgun.com/best_practices.html#email-content Source>)
+--
+-- This API mirrors that advice so that you can always get it right.
 data MessageContent
-   = TextOnly 
-      { textContent :: B.ByteString
+   -- | The Text only version of the message content.
+   = TextOnly
+      { textContent :: B.ByteString 
       }
+   -- | A message that contains both a Text version of the email content and a HTML version of the email content.
    | TextAndHTML
-      { textContent :: B.ByteString
-      , htmlContent :: B.ByteString
+      { textContent :: B.ByteString -- ^ The text content that you wish to send (please note that many clients will take the HTML version first if it is present but that the text version is a great fallback).
+      , htmlContent :: B.ByteString -- ^ The HTML content that you wish to send.
       }
 
+-- | A Hailgun Email message that may be sent. It contains important information such as the address
+-- that the email is from, the addresses that it should be going to, the subject of the message and
+-- the content of the message. Any email that you wish to send via this api must be converted into
+-- this structure first.
 data HailgunMessage = HailgunMessage
    { messageSubject  :: MessageSubject
    , messageContent  :: MessageContent
@@ -75,23 +93,35 @@ data HailgunMessage = HailgunMessage
    -- TODO custom mime header support
    -- TODO custome message data support
 
+-- | No recipients for your email. Useful singleton instance to avoid boilerplate in your code.
 emptyMessageRecipients :: MessageRecipients
 emptyMessageRecipients = MessageRecipients [] [] []
 
+-- | A collection of unverified email recipients separated into the To, CC and BCC groupings that
+-- email supports.
 data MessageRecipients = MessageRecipients 
-   { recipientsTo    :: [UnverifiedEmailAddress]
-   , recipientsCC    :: [UnverifiedEmailAddress]
-   , recipientsBCC   :: [UnverifiedEmailAddress]
+   { recipientsTo    :: [UnverifiedEmailAddress] -- ^ The people to email directly.
+   , recipientsCC    :: [UnverifiedEmailAddress] -- ^ The people to "Carbon Copy" into the email. Honestly, why is that term not deprecated yet?
+   , recipientsBCC   :: [UnverifiedEmailAddress] -- ^ The people to "Bling Carbon Copy" into the email. There really needs to be a better name for this too.
    }
 
+-- | A generic error message that is returned by the Hailgun library.
 type HailgunErrorMessage = String
 
-hailgunMessage :: MessageSubject -> MessageContent -> UnverifiedEmailAddress -> MessageRecipients -> Either HailgunErrorMessage HailgunMessage
+-- | A method to construct a HailgunMessage. You require a subject, content, From address and people
+-- to send the email to and it will give you back a valid Hailgun email message. Or it will error
+-- out while trying.
+hailgunMessage 
+   :: MessageSubject -- ^ The purpose of the email surmised.
+   -> MessageContent -- ^ The full body of the email.
+   -> UnverifiedEmailAddress -- ^ The email account that the recipients should respond to in order to get back to us.
+   -> MessageRecipients -- ^ The people that should recieve this email.
+   -> Either HailgunErrorMessage HailgunMessage -- ^ Either an error while trying to create a valid message or a valid message.
 hailgunMessage subject content sender recipients = do
-   from <- validate sender
-   to <- mapM validate (recipientsTo recipients)
-   cc <- mapM validate (recipientsCC recipients)
-   bcc <- mapM validate (recipientsBCC recipients)
+   from  <- validate sender
+   to    <- mapM validate (recipientsTo recipients)
+   cc    <- mapM validate (recipientsCC recipients)
+   bcc   <- mapM validate (recipientsBCC recipients)
    return HailgunMessage 
       { messageSubject = subject
       , messageContent = content
@@ -165,17 +195,17 @@ sendEmail context message = do
    requestWithBody <- encodeFormData (toPostVars message) request
    let authedRequest = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context) requestWithBody
    response <- withManager tlsManagerSettings (httpLbs authedRequest)
-   case responseStatus response of
-      (NT.Status { NT.statusCode = 200 }) -> return . convertGood . eitherDecode' . responseBody $ response
-      (NT.Status { NT.statusCode = 400 }) -> return . Left . convertBad . eitherDecode' . responseBody $ response
-      (NT.Status { NT.statusCode = 401 }) -> return . Left . convertBad . eitherDecode' . responseBody $ response
-      (NT.Status { NT.statusCode = 402 }) -> return . Left . convertBad . eitherDecode' . responseBody $ response
-      (NT.Status { NT.statusCode = 404 }) -> return . Left . convertBad . eitherDecode' . responseBody $ response
-      (NT.Status { NT.statusCode = 500 }) -> serverError
-      (NT.Status { NT.statusCode = 502 }) -> serverError
-      (NT.Status { NT.statusCode = 503 }) -> serverError
-      (NT.Status { NT.statusCode = 504 }) -> serverError
-      c         -> retError . unexpectedError $ c
+   case NT.statusCode . responseStatus $ response of
+      200 -> return . convertGood . eitherDecode' . responseBody $ response
+      400 -> return . Left . convertBad . eitherDecode' . responseBody $ response
+      401 -> return . Left . convertBad . eitherDecode' . responseBody $ response
+      402 -> return . Left . convertBad . eitherDecode' . responseBody $ response
+      404 -> return . Left . convertBad . eitherDecode' . responseBody $ response
+      500 -> serverError
+      502 -> serverError
+      503 -> serverError
+      504 -> serverError
+      c   -> retError . unexpectedError $ c
    where
       url = "https://api.mailgun.net/v2/" ++ hailgunDomain context ++ "/messages"
       retError = return . Left . toHailgunError
