@@ -27,13 +27,13 @@ data Flag
    
 options :: [OptDescr Flag]
 options =
-   [ Option ['h'] ["help"]    (NoArg Help)                     "displays this help message"
-   , Option ['f'] ["from"]    (ReqArg fromP "me@test.test")    "You are required to provide sender of this email."
-   , Option ['t'] ["to"]      (ReqArg toP "them@test.test")    "You will need to provide atleast one person that you wish to send the email to."
+   [ Option "h" ["help"]    (NoArg Help)                     "displays this help message"
+   , Option "f" ["from"]    (ReqArg fromP "me@test.test")    "You are required to provide sender of this email."
+   , Option "t" ["to"]      (ReqArg toP "them@test.test")    "You will need to provide atleast one person that you wish to send the email to."
    -- TODO Confirm that this is required.
-   , Option ['s'] ["subject"] (ReqArg Subject "subject")      "You need to send an email subject."
-   , Option ['x'] ["text"]    (ReqArg TextMessage "email.text")   "You need to provide a text email file at a minimum."
-   , Option ['m'] ["html"]    (ReqArg HTMLMessage "email.html")   "You can provide a HTML version of the email to send."
+   , Option "s" ["subject"] (ReqArg Subject "subject")      "You need to send an email subject."
+   , Option "x" ["text"]    (ReqArg TextMessage "email.text")   "You need to provide a text email file at a minimum."
+   , Option "m" ["html"]    (ReqArg HTMLMessage "email.html")   "You can provide a HTML version of the email to send."
    ]
    where
       fromP = From . BC.pack
@@ -50,13 +50,13 @@ loadHailgunContext configFile = do
    hailgunConf <- load [Required configFile]
    domain <- require hailgunConf mailgunDomainLabel
    apiKey <- require hailgunConf mailgunApiKeyLabel
-   return $ HailgunContext 
+   return HailgunContext 
       { hailgunDomain = domain
       , hailgunApiKey = apiKey
       }
 
 handleSend :: [Flag] -> MessageContent -> Either HailgunErrorMessage HailgunMessage
-handleSend flags emailBody = do
+handleSend flags emailBody =
    case (unverifiedFrom, subjects) of
       ([from], [subject]) -> hailgunMessage subject emailBody from simpleRecipients
       ([], []) -> fail "You need to provide both a from address and a subject to send an email."
@@ -112,8 +112,8 @@ main = do
          else do
             potentialEmailBody <- prepareEmailBody flags
             case potentialEmailBody of
-               Nothing -> putStrLn $ "At the very least you must provide a text file to send as the email body."
-               (Just messageContent) -> case (handleSend flags messageContent) of
+               Nothing -> putStrLn "At the very least you must provide a text file to send as the email body."
+               (Just messageContent) -> case handleSend flags messageContent of
                   Left error -> putStrLn $ "Error generating mail: " ++ error 
                   Right message -> sendMessage message
       (_, _, xs) -> error "Got some errors when parsing the command line options. TODO show nicer"

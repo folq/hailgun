@@ -221,7 +221,7 @@ sendEmail context message = do
       retError = return . Left . toHailgunError
 
       serverError = retError "Server Errors - something is wrong on Mailgun’s end"
-      unexpectedError x = "Unexpected Non-Standard Mailgun Error: " ++ (show x) 
+      unexpectedError x = "Unexpected Non-Standard Mailgun Error: " ++ show x
       toI (x, y, z) = x * 100 + y * 10 + z
 
 convertGood :: Either String HailgunSendResponse -> Either HailgunErrorResponse HailgunSendResponse
@@ -229,5 +229,5 @@ convertGood (Left error) = Left . toHailgunError $ error
 convertGood (Right response) = Right response
 
 convertBad :: Either String HailgunErrorResponse -> HailgunErrorResponse
-convertBad (Left error) = toHailgunError $ error
-convertBad (Right e) = e
+convertBad (Left error) = toHailgunError error
+convertBad (Right e)    = e
