@@ -1,15 +1,15 @@
 module Mail.Hailgun 
-   ( HailgunMessage
-   , HailgunErrorMessage
+   ( sendEmail
+   , hailgunMessage
+   , HailgunMessage
+   , HailgunContext(..)
    , MessageSubject
-   , UnverifiedEmailAddress
    , MessageContent(..)
    , MessageRecipients(..)
    , emptyMessageRecipients
-   , HailgunContext(..)
-   , hailgunMessage
-   , sendEmail
+   , UnverifiedEmailAddress
    , HailgunSendResponse(..)
+   , HailgunErrorMessage
    , HailgunErrorResponse(..)
    ) where
 
