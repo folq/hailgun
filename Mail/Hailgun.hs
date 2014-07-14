@@ -151,21 +151,26 @@ toPostVars message =
       convertEmails :: BC.ByteString -> [EmailAddress] -> [(BC.ByteString, BC.ByteString)]
       convertEmails prefix = fmap ((,) prefix . toByteString)
 
--- Use this method of the HTTP library to convert this into a Request body:
--- https://hackage.haskell.org/package/HTTP-4000.2.17/docs/Network-HTTP-Base.html#v:urlEncodeVars
-
+-- | When comunnicating to the Mailgun service you need to have some common pieces of information to
+-- authenticate successfully. This context encapsulates that required information.
 data HailgunContext = HailgunContext
-   { hailgunDomain :: String -- TODO better way to represent a domain
-   , hailgunApiKey :: String
+   -- TODO better way to represent a domain
+   { hailgunDomain :: String -- ^ The domain of the mailgun account that you wish to send the emails through.
+   , hailgunApiKey :: String -- ^ The API key for the mailgun account so that you can successfully make requests. Please note that it should include the 'key' prefix.
    }
 
+-- TODO replace with MailgunSendResponse
+-- | The response to an email being accepted by the Mailgun API.
 data HailgunSendResponse = HailgunSendResponse
-   { hsrMessage :: String
-   , hsrId      :: String
+   { hsrMessage :: String -- ^ The freeform message from the mailgun API.
+   , hsrId      :: String -- ^ The ID of the message that has been accepted by the Mailgun api.
    }
 
+-- TODO make this Hailgun specific and different for the Mailgun api. That way there is the correct
+-- separation of concerns.
+-- | An error that comes from Mailgun or the Hailgun API.
 data HailgunErrorResponse = HailgunErrorResponse
-   { herMessage :: String
+   { herMessage :: String -- ^ A generic message describing the error.
    }
 
 toHailgunError :: String -> HailgunErrorResponse
@@ -188,7 +193,12 @@ encodeFormData fields = formDataBody (map toPart fields)
       toPart :: (BC.ByteString, BC.ByteString) -> Part
       toPart (name, content) = partBS (T.pack . BC.unpack $ name) content
 
-sendEmail :: HailgunContext -> HailgunMessage -> IO (Either HailgunErrorResponse HailgunSendResponse)
+-- | Send an email using the Mailgun API's. This method is capable of sending a message over the
+-- Mailgun service. All it needs is the appropriate context.
+sendEmail 
+   :: HailgunContext -- ^ The Mailgun context to operate in.
+   -> HailgunMessage -- ^ The Hailgun message to be sent.
+   -> IO (Either HailgunErrorResponse HailgunSendResponse) -- ^ The result of the sent email. Either a sent email or a successful send.
 sendEmail context message = do
    initRequest <- parseUrl url
    let request = initRequest { method = NM.methodPost, checkStatus = \_ _ _ -> Nothing }
@@ -221,4 +231,3 @@ convertGood (Right response) = Right response
 convertBad :: Either String HailgunErrorResponse -> HailgunErrorResponse
 convertBad (Left error) = toHailgunError $ error
 convertBad (Right e) = e
-
