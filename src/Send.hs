@@ -3,13 +3,13 @@ module Main where
 import Mail.Hailgun
 
 import Control.Applicative ((<$>))
-import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as BC
 import Data.Configurator (load, require, Worth(..))
 import qualified Data.List as DL
 import qualified Data.Text as T
 import System.Console.GetOpt (getOpt, OptDescr(..), ArgDescr(..), ArgOrder(..), usageInfo)
 import System.Environment (getArgs)
+import System.Exit (exitFailure)
 
 -- The purpose of this module is to provide a way to send emails to the Mailgun service using the
 -- command line. This is mainly for the purposes of testing initially. Using this executable should
@@ -60,8 +60,8 @@ handleSend flags emailBody =
    case (unverifiedFrom, subjects) of
       ([from], [subject]) -> hailgunMessage subject emailBody from simpleRecipients
       ([], []) -> fail "You need to provide both a from address and a subject to send an email."
-      (xs, []) -> fail "You have more than one from address and only one is allowed"
-      ([], xs) -> fail "You have more than one subject and only one is allowed"
+      (_ , []) -> fail "You have more than one from address and only one is allowed"
+      ([], _ ) -> fail "You have more than one subject and only one is allowed"
       _        -> fail "You have too many from adresses and subjects, you should only have one of each."
    where
       unverifiedTo = fmap email . filter isTo $ flags
@@ -108,7 +108,7 @@ main = do
    arguments <- getArgs
    case getOpt Permute options arguments of
       (flags, _, []) -> if Help `elem` flags
-         then putStrLn $ usageInfo usageMessage options
+         then printUsage
          else do
             potentialEmailBody <- prepareEmailBody flags
             case potentialEmailBody of
@@ -116,7 +116,13 @@ main = do
                (Just messageContent) -> case handleSend flags messageContent of
                   Left error -> putStrLn $ "Error generating mail: " ++ error 
                   Right message -> sendMessage message
-      (_, _, xs) -> error "Got some errors when parsing the command line options. TODO show nicer"
+      (_, _, xs) -> do
+         putStrLn "Error parsing arguments:"
+         mapM_ putStrLn xs
+         printUsage
+         exitFailure
+   where
+      printUsage = putStrLn $ usageInfo usageMessage options
 
 prepareEmailBody :: [Flag] -> IO (Maybe MessageContent)
 prepareEmailBody flags = case (DL.find isTextMessage flags, DL.find isHtmlMessage flags) of
@@ -129,3 +135,4 @@ prepareEmailBody flags = case (DL.find isTextMessage flags, DL.find isHtmlMessag
          { textContent = textContents
          , htmlContent = htmlContents
          }
+   _ -> return Nothing -- The type safety should prevent this scenario.
