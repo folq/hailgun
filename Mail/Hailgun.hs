@@ -22,16 +22,14 @@ import Control.Monad (mzero)
 import Control.Monad.IO.Class
 import Data.Aeson
 import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy.Char8 as BLC
 import qualified Data.ByteString.Char8 as BC
 import qualified Data.Text as T
 import Text.Email.Validate
-import Network.HTTP.Client (Request(..), RequestBody(..), parseUrl, httpLbs, withManager, defaultManagerSettings, responseStatus, responseBody, applyBasicAuth)
+import Network.HTTP.Client (Request(..), parseUrl, httpLbs, withManager, responseStatus, responseBody, applyBasicAuth)
 import Network.HTTP.Client.MultipartFormData (Part(..), formDataBody, partBS)
 import Network.HTTP.Client.TLS (tlsManagerSettings)
 import qualified Network.HTTP.Types.Status as NT
 import qualified Network.HTTP.Types.Method as NM
-import qualified Network.HTTP.Types.Header as NH
 
 {- 
  - The basic rest API's look like this when used in curl:
@@ -231,7 +229,6 @@ sendEmail context message = do
 
       serverError = retError "Server Errors - something is wrong on Mailgun’s end"
       unexpectedError x = "Unexpected Non-Standard Mailgun Error: " ++ show x
-      toI (x, y, z) = x * 100 + y * 10 + z
 
 convertGood :: Either String HailgunSendResponse -> Either HailgunErrorResponse HailgunSendResponse
 convertGood (Left error) = Left . toHailgunError $ error

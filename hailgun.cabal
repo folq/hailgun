@@ -16,7 +16,9 @@ version:             0.1.0.0
 synopsis:            Mailgun REST api interface for Haskell.
 
 -- A longer description of the package.
--- description:         
+description:         Mailgun is an online service that sends emails. It is a great point of
+                     integration for many SaaS services and this Haskell library cleanly interfaces
+                     with Mailgun so that you can send emails from your Haskell applications.
 
 -- The license under which the package is released.
 license:             MIT
@@ -32,7 +34,7 @@ author:              Robert Massaioli
 maintainer:          robertmassaioli@gmail.com
 
 -- A copyright notice.
--- copyright:           
+copyright:           (c) 2014 Robert Massaioli
 
 category:            Network
 
@@ -40,48 +42,34 @@ build-type:          Simple
 
 -- Extra files to be distributed with the package, such as examples or a 
 -- README.
--- extra-source-files:  
+extra-source-files:  README.markdown
 
 -- Constraint on the version of Cabal needed to build this package.
 cabal-version:       >=1.10
 
 
 library
-  -- Modules exported by the library.
-  exposed-modules:     Mail.Hailgun
-  
-  -- Modules included in this library but not exported.
-  -- other-modules:       
-  
-  -- LANGUAGE extensions used by modules in this package.
-  -- other-extensions:    
-  
-  -- Other library packages from which modules are imported.
-  build-depends:       base >=4.6 && <4.7
-                       , bytestring >= 0.9
-                       , aeson == 0.7.*
-                       , text == 0.11.*
-                       , transformers == 0.3.*
-                       , http-client == 0.3.*
-                       , http-client-tls == 0.2.*
-                       , email-validate ==2.0.*
-                       , http-types == 0.8.*
-  
-  -- Directories containing source files.
-  -- hs-source-dirs:      
-  
-  -- Base language which the package is written in.
-  default-language:    Haskell2010
+   exposed-modules:     Mail.Hailgun
+   build-depends:       base >=4.6 && <4.7
+                        , bytestring >= 0.9 && <= 0.11
+                        , aeson == 0.7.*
+                        , text == 0.11.*
+                        , transformers == 0.3.*
+                        , http-client == 0.3.*
+                        , http-client-tls == 0.2.*
+                        , email-validate ==2.0.*
+                        , http-types == 0.8.*
+
+   ghc-options: -W
+   default-language:    Haskell2010
   
 executable hailgun-send
-   hs-source-dirs:   src
-   main-is:          Send.hs
+   hs-source-dirs:      src
+   main-is:             Send.hs
+   default-language:    Haskell2010
 
-   build-depends:    base == 4.6.*
-                     , hailgun
-                     , configurator == 0.3.*
-                     , text == 0.11.*
-                     , bytestring >= 0.9
-
-  -- Base language which the package is written in.
-  default-language:    Haskell2010
+   build-depends:       base == 4.6.*
+                        , hailgun
+                        , bytestring >= 0.9 && <= 0.11
+                        , text == 0.11.*
+                        , configurator == 0.3.*
