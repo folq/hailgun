@@ -71,7 +71,7 @@ data MessageContent
 -- | A Hailgun Email message that may be sent. It contains important information such as the address
 -- that the email is from, the addresses that it should be going to, the subject of the message and
 -- the content of the message. Any email that you wish to send via this api must be converted into
--- this structure first.
+-- this structure first. To create a message then please use the hailgunMessage interface.
 data HailgunMessage = HailgunMessage
    { messageSubject  :: MessageSubject
    , messageContent  :: MessageContent
@@ -93,7 +93,12 @@ data HailgunMessage = HailgunMessage
    -- TODO custom mime header support
    -- TODO custome message data support
 
--- | No recipients for your email. Useful singleton instance to avoid boilerplate in your code.
+-- | No recipients for your email. Useful singleton instance to avoid boilerplate in your code. For
+-- example: 
+--
+-- @
+-- toBob = emptyMessageRecipients { recipientsTo = [\"bob\@bob.test\"] }
+-- @
 emptyMessageRecipients :: MessageRecipients
 emptyMessageRecipients = MessageRecipients [] [] []
 
@@ -101,8 +106,8 @@ emptyMessageRecipients = MessageRecipients [] [] []
 -- email supports.
 data MessageRecipients = MessageRecipients 
    { recipientsTo    :: [UnverifiedEmailAddress] -- ^ The people to email directly.
-   , recipientsCC    :: [UnverifiedEmailAddress] -- ^ The people to "Carbon Copy" into the email. Honestly, why is that term not deprecated yet?
-   , recipientsBCC   :: [UnverifiedEmailAddress] -- ^ The people to "Bling Carbon Copy" into the email. There really needs to be a better name for this too.
+   , recipientsCC    :: [UnverifiedEmailAddress] -- ^ The people to \"Carbon Copy\" into the email. Honestly, why is that term not deprecated yet?
+   , recipientsBCC   :: [UnverifiedEmailAddress] -- ^ The people to \"Blind Carbon Copy\" into the email. There really needs to be a better name for this too.
    }
 
 -- | A generic error message that is returned by the Hailgun library.

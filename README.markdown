@@ -36,7 +36,7 @@ project. Follow these steps to get started with the library and Mailgun and send
     mailgun sandbox domain in the file. You can copy the hailgun.send.conf.default file to see the
     correct format.
  1. Now you may use hailgun-send to send emails by passing in the correct command line arguments.
-    You can see the command line argumet options with `cabal run hailgun-send -- --help`
+    You can see the command line argument options with `cabal run hailgun-send -- --help`
 
 If you are lucky this has only taken you a few minutes to get working and you are now sending emails
 through the Mailgun API from the terminal.
