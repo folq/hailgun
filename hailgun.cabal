@@ -50,7 +50,7 @@ cabal-version:       >=1.10
 
 library
    exposed-modules:     Mail.Hailgun
-   build-depends:         base >= 4.7 && < 5
+   build-depends:         base >= 4.6 && < 5
                         , bytestring >= 0.10.4 && <= 0.11
                         , aeson == 0.7.*
                         , text == 1.1.*
