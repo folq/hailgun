@@ -15,21 +15,27 @@ module Mail.Hailgun
    , HailgunSendResponse(..)
    , HailgunErrorMessage
    , HailgunErrorResponse(..)
+   , getDomains
+   , Page(..)
+   , HailgunDomain(..)
+   , HailgunDomainResponse(..)
    ) where
 
-import Control.Applicative ((<$>), (<*>))
-import Control.Monad (mzero)
-import Control.Monad.IO.Class
-import Data.Aeson
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Char8 as BC
-import qualified Data.Text as T
-import Text.Email.Validate
-import Network.HTTP.Client (Request(..), parseUrl, httpLbs, withManager, responseStatus, responseBody, applyBasicAuth)
-import Network.HTTP.Client.MultipartFormData (Part(..), formDataBody, partBS)
-import Network.HTTP.Client.TLS (tlsManagerSettings)
-import qualified Network.HTTP.Types.Status as NT
-import qualified Network.HTTP.Types.Method as NM
+import            Control.Applicative ((<$>), (<*>))
+import            Control.Monad (mzero)
+import            Control.Monad.IO.Class
+import            Data.Aeson
+import qualified  Data.ByteString as B
+import qualified  Data.ByteString.Char8 as BC
+import qualified  Data.ByteString.Lazy.Char8 as BCL
+import qualified  Data.Text as T
+import            Data.Time.Clock (UTCTime(..))
+import            Text.Email.Validate
+import            Network.HTTP.Client (Request(..), Response(..), parseUrl, httpLbs, withManager, responseStatus, responseBody, applyBasicAuth)
+import            Network.HTTP.Client.MultipartFormData (Part(..), formDataBody, partBS)
+import            Network.HTTP.Client.TLS (tlsManagerSettings)
+import qualified  Network.HTTP.Types.Status as NT
+import qualified  Network.HTTP.Types.Method as NM
 
 {- 
  - The basic rest API's look like this when used in curl:
@@ -208,32 +214,99 @@ sendEmail
    -> IO (Either HailgunErrorResponse HailgunSendResponse) -- ^ The result of the sent email. Either a sent email or a successful send.
 sendEmail context message = do
    initRequest <- parseUrl url
-   let request = initRequest { method = NM.methodPost, checkStatus = \_ _ _ -> Nothing }
+   let request = initRequest { method = NM.methodPost, checkStatus = ignoreStatus }
    requestWithBody <- encodeFormData (toPostVars message) request
    let authedRequest = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context) requestWithBody
    response <- withManager tlsManagerSettings (httpLbs authedRequest)
+   return $ parseResponse response eitherDecode'
+   where
+      url = mailgunApiPrefix context ++ "/messages"
+
+parseResponse :: Response BCL.ByteString -> (BCL.ByteString -> Either String a) -> Either HailgunErrorResponse a
+parseResponse response decoder = 
    case NT.statusCode . responseStatus $ response of
-      200 -> return . convertGood . eitherDecode' . responseBody $ response
-      400 -> return . Left . convertBad . eitherDecode' . responseBody $ response
-      401 -> return . Left . convertBad . eitherDecode' . responseBody $ response
-      402 -> return . Left . convertBad . eitherDecode' . responseBody $ response
-      404 -> return . Left . convertBad . eitherDecode' . responseBody $ response
+      200 -> convertGood . decoder . responseBody $ response
+      400 -> Left . convertBad . eitherDecode' . responseBody $ response
+      401 -> Left . convertBad . eitherDecode' . responseBody $ response
+      402 -> Left . convertBad . eitherDecode' . responseBody $ response
+      404 -> Left . convertBad . eitherDecode' . responseBody $ response
       500 -> serverError
       502 -> serverError
       503 -> serverError
       504 -> serverError
       c   -> retError . unexpectedError $ c
-   where
-      url = "https://api.mailgun.net/v2/" ++ hailgunDomain context ++ "/messages"
-      retError = return . Left . toHailgunError
 
-      serverError = retError "Server Errors - something is wrong on Mailgun’s end"
-      unexpectedError x = "Unexpected Non-Standard Mailgun Error: " ++ show x
+retError :: String -> Either HailgunErrorResponse a
+retError = Left . toHailgunError
 
-convertGood :: Either String HailgunSendResponse -> Either HailgunErrorResponse HailgunSendResponse
+serverError :: Either HailgunErrorResponse a
+serverError = retError "Server Errors - something is wrong on Mailgun’s end"
+
+unexpectedError :: Int -> String
+unexpectedError x = "Unexpected Non-Standard Mailgun Error: " ++ show x
+
+convertGood :: Either String a -> Either HailgunErrorResponse a
 convertGood (Left error) = Left . toHailgunError $ error
 convertGood (Right response) = Right response
 
 convertBad :: Either String HailgunErrorResponse -> HailgunErrorResponse
 convertBad (Left error) = toHailgunError error
 convertBad (Right e)    = e
+
+mailgunApiPrefix :: HailgunContext -> String
+mailgunApiPrefix context = "https://api.mailgun.net/v2/" ++ hailgunDomain context
+
+ignoreStatus :: a -> b -> c -> Maybe d
+ignoreStatus _ _ _ = Nothing
+
+data Page = Page
+   { pageStart  :: Integer
+   , pageLength :: Integer
+   }
+
+pageToParams :: Page -> [(BC.ByteString, BC.ByteString)]
+pageToParams page = 
+   [ (BC.pack "skip",   BC.pack . show . pageStart $ page)
+   , (BC.pack "limit",  BC.pack . show . pageLength $ page)
+   ]
+
+getDomains :: HailgunContext -> Page -> IO (Either HailgunErrorResponse HailgunDomainResponse)
+getDomains context page = do
+   initRequest <- parseUrl url
+   let request = initRequest { method = NM.methodGet, checkStatus = ignoreStatus }
+   requestWithBody <- encodeFormData (pageToParams page) request
+   let authedRequest = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context) requestWithBody
+   response <- withManager tlsManagerSettings (httpLbs authedRequest)
+   return $ parseResponse response eitherDecode'
+   where
+      url = mailgunApiPrefix context ++ "/domains"
+
+data HailgunDomainResponse = HailgunDomainResponse
+   { hdrTotalCount :: Integer
+   , hdrItems :: [HailgunDomain]
+   }
+
+instance FromJSON HailgunDomainResponse where
+   parseJSON (Object v) = HailgunDomainResponse
+      <$> v .: T.pack "total_count"
+      <*> v .: T.pack "items"
+   parseJSON _ = mzero
+
+data HailgunDomain = HailgunDomain
+   { domainName         :: T.Text
+   , domainSmtpLogin    :: String
+   , domainSmtpPassword :: String
+   , domainCreatedAt    :: UTCTime
+   , domainWildcard     :: Bool
+   , domainSpamAction   :: String -- TODO the domain spam action is probably better specified
+   }
+
+instance FromJSON HailgunDomain where
+   parseJSON (Object v) = HailgunDomain
+      <$> v .: T.pack "name"
+      <*> v .: T.pack "smtp_login"
+      <*> v .: T.pack "smtp_password"
+      <*> v .: T.pack "created_at"
+      <*> v .: T.pack "wildcard"
+      <*> v .: T.pack "spam_action"
+   parseJSON _ = mzero
