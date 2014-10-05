@@ -328,7 +328,7 @@ instance FromJSON HailgunDomain where
    parseJSON _ = mzero
 
 newtype HailgunTime = HailgunTime UTCTime
-   deriving (Show)
+   deriving (Eq, Ord, Show)
 
 -- Example Input: 'Thu, 13 Oct 2011 18:02:00 GMT'
 instance FromJSON HailgunTime where
