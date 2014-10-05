@@ -19,9 +19,10 @@ module Mail.Hailgun
    , Page(..)
    , HailgunDomain(..)
    , HailgunDomainResponse(..)
+   , HailgunTime(..)
    ) where
 
-import            Control.Applicative ((<$>), (<*>))
+import            Control.Applicative ((<$>), (<*>), pure)
 import            Control.Monad (mzero)
 import            Control.Monad.IO.Class
 import            Data.Aeson
@@ -30,12 +31,20 @@ import qualified  Data.ByteString.Char8 as BC
 import qualified  Data.ByteString.Lazy.Char8 as BCL
 import qualified  Data.Text as T
 import            Data.Time.Clock (UTCTime(..))
+import            Data.Time.LocalTime (zonedTimeToUTC)
 import            Text.Email.Validate
-import            Network.HTTP.Client (Request(..), Response(..), parseUrl, httpLbs, withManager, responseStatus, responseBody, applyBasicAuth)
+import            Network.HTTP.Client (Request(..), Response(..), parseUrl, httpLbs, withManager, responseStatus, responseBody, applyBasicAuth, setQueryString)
 import            Network.HTTP.Client.MultipartFormData (Part(..), formDataBody, partBS)
 import            Network.HTTP.Client.TLS (tlsManagerSettings)
 import qualified  Network.HTTP.Types.Status as NT
 import qualified  Network.HTTP.Types.Method as NM
+
+import Data.Time.Format (ParseTime(..), parseTime)
+#if MIN_VERSION_time(1,5,0)
+import Data.Time.Format(defaultTimeLocale)
+#else
+import System.Locale (defaultTimeLocale)
+#endif
 
 {- 
  - The basic rest API's look like this when used in curl:
@@ -220,7 +229,7 @@ sendEmail context message = do
    response <- withManager tlsManagerSettings (httpLbs authedRequest)
    return $ parseResponse response eitherDecode'
    where
-      url = mailgunApiPrefix context ++ "/messages"
+      url = mailgunApiPrefixContext context ++ "/messages"
 
 parseResponse :: Response BCL.ByteString -> (BCL.ByteString -> Either String a) -> Either HailgunErrorResponse a
 parseResponse response decoder = 
@@ -253,8 +262,11 @@ convertBad :: Either String HailgunErrorResponse -> HailgunErrorResponse
 convertBad (Left error) = toHailgunError error
 convertBad (Right e)    = e
 
-mailgunApiPrefix :: HailgunContext -> String
-mailgunApiPrefix context = "https://api.mailgun.net/v2/" ++ hailgunDomain context
+mailgunApiPrefix :: String
+mailgunApiPrefix = "https://api.mailgun.net/v2" 
+
+mailgunApiPrefixContext :: HailgunContext -> String
+mailgunApiPrefixContext context = mailgunApiPrefix ++ "/" ++ hailgunDomain context
 
 ignoreStatus :: a -> b -> c -> Maybe d
 ignoreStatus _ _ _ = Nothing
@@ -270,16 +282,19 @@ pageToParams page =
    , (BC.pack "limit",  BC.pack . show . pageLength $ page)
    ]
 
+toQueryParams :: [(BC.ByteString, BC.ByteString)] -> [(BC.ByteString, Maybe BC.ByteString)]
+toQueryParams = fmap (\(x, y) -> (x, Just y))
+
 getDomains :: HailgunContext -> Page -> IO (Either HailgunErrorResponse HailgunDomainResponse)
 getDomains context page = do
    initRequest <- parseUrl url
    let request = initRequest { method = NM.methodGet, checkStatus = ignoreStatus }
-   requestWithBody <- encodeFormData (pageToParams page) request
-   let authedRequest = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context) requestWithBody
+   let requestWithParams = setQueryString (toQueryParams . pageToParams $ page) request
+   let authedRequest = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context) requestWithParams
    response <- withManager tlsManagerSettings (httpLbs authedRequest)
    return $ parseResponse response eitherDecode'
    where
-      url = mailgunApiPrefix context ++ "/domains"
+      url = mailgunApiPrefix ++ "/domains"
 
 data HailgunDomainResponse = HailgunDomainResponse
    { hdrTotalCount :: Integer
@@ -296,10 +311,11 @@ data HailgunDomain = HailgunDomain
    { domainName         :: T.Text
    , domainSmtpLogin    :: String
    , domainSmtpPassword :: String
-   , domainCreatedAt    :: UTCTime
+   , domainCreatedAt    :: HailgunTime
    , domainWildcard     :: Bool
    , domainSpamAction   :: String -- TODO the domain spam action is probably better specified
    }
+   deriving(Show)
 
 instance FromJSON HailgunDomain where
    parseJSON (Object v) = HailgunDomain
@@ -310,3 +326,16 @@ instance FromJSON HailgunDomain where
       <*> v .: T.pack "wildcard"
       <*> v .: T.pack "spam_action"
    parseJSON _ = mzero
+
+newtype HailgunTime = HailgunTime UTCTime
+   deriving (Show)
+
+-- Example Input: 'Thu, 13 Oct 2011 18:02:00 GMT'
+instance FromJSON HailgunTime where
+   parseJSON = withText "HailgunTime" $ \t ->
+      case parseTime defaultTimeLocale "%a, %d %b %Y %T %Z" (T.unpack t) of
+         Just d -> pure d
+         _      -> fail "could not parse Mailgun Style date"
+
+instance ParseTime HailgunTime where
+   buildTime l = HailgunTime . zonedTimeToUTC . buildTime l
