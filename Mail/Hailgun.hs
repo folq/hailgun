@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 -- | Hailgun is a Haskell wrapper around the <http://documentation.mailgun.com/api_reference.html Mailgun api's> that use
 -- type safety to ensure that you are sending a valid request to the Mailgun API's. Mailgun is a
 -- service that lets you send emails. It also contains a number of other email handling API's that
@@ -25,6 +26,7 @@ module Mail.Hailgun
 import            Control.Applicative ((<$>), (<*>), pure)
 import            Control.Monad (mzero)
 import            Control.Monad.IO.Class
+import            Control.Monad.Catch (MonadThrow(..))
 import            Data.Aeson
 import qualified  Data.ByteString as B
 import qualified  Data.ByteString.Char8 as BC
@@ -222,11 +224,8 @@ sendEmail
    -> HailgunMessage -- ^ The Hailgun message to be sent.
    -> IO (Either HailgunErrorResponse HailgunSendResponse) -- ^ The result of the sent email. Either a sent email or a successful send.
 sendEmail context message = do
-   initRequest <- parseUrl url
-   let request = initRequest { method = NM.methodPost, checkStatus = ignoreStatus }
-   requestWithBody <- encodeFormData (toPostVars message) request
-   let authedRequest = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context) requestWithBody
-   response <- withManager tlsManagerSettings (httpLbs authedRequest)
+   request <- postRequest url context (toPostVars message)
+   response <- withManager tlsManagerSettings (httpLbs request)
    return $ parseResponse response eitherDecode'
    where
       url = mailgunApiPrefixContext context ++ "/messages"
@@ -287,14 +286,27 @@ toQueryParams = fmap (\(x, y) -> (x, Just y))
 
 getDomains :: HailgunContext -> Page -> IO (Either HailgunErrorResponse HailgunDomainResponse)
 getDomains context page = do
-   initRequest <- parseUrl url
-   let request = initRequest { method = NM.methodGet, checkStatus = ignoreStatus }
-   let requestWithParams = setQueryString (toQueryParams . pageToParams $ page) request
-   let authedRequest = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context) requestWithParams
-   response <- withManager tlsManagerSettings (httpLbs authedRequest)
+   request <- getRequest url context (toQueryParams . pageToParams $ page)
+   response <- withManager tlsManagerSettings (httpLbs request)
    return $ parseResponse response eitherDecode'
    where
       url = mailgunApiPrefix ++ "/domains"
+
+getRequest :: (MonadThrow m) => String -> HailgunContext -> [(BC.ByteString, Maybe BC.ByteString)] -> m Request
+getRequest url context queryParams = do
+   initRequest <- parseUrl url
+   let request = applyHailgunAuth context $ initRequest { method = NM.methodGet, checkStatus = ignoreStatus }
+   return $ setQueryString queryParams request
+
+postRequest :: (MonadThrow m, MonadIO m) => String -> HailgunContext -> [(BC.ByteString, BC.ByteString)] -> m Request
+postRequest url context formParams = do
+   initRequest <- parseUrl url
+   let request = initRequest { method = NM.methodPost, checkStatus = ignoreStatus }
+   requestWithBody <- encodeFormData formParams request
+   return $ applyHailgunAuth context requestWithBody
+
+applyHailgunAuth :: HailgunContext -> Request -> Request
+applyHailgunAuth context request = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context) request
 
 data HailgunDomainResponse = HailgunDomainResponse
    { hdrTotalCount :: Integer
