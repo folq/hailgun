@@ -227,18 +227,21 @@ sendEmail
 sendEmail context message = do
    request <- postRequest url context (toPostVars message)
    response <- withManager tlsManagerSettings (httpLbs request)
-   return $ parseResponse response eitherDecode'
+   return $ parseResponse response
    where
       url = mailgunApiPrefixContext context ++ "/messages"
 
-parseResponse :: Response BCL.ByteString -> (BCL.ByteString -> Either String a) -> Either HailgunErrorResponse a
-parseResponse response decoder = statusToResponse . NT.statusCode . responseStatus $ response
+parseResponse :: (FromJSON a) => Response BCL.ByteString -> Either HailgunErrorResponse a
+parseResponse response = statusToResponse . NT.statusCode . responseStatus $ response
    where
       statusToResponse s
-         | s == 200                      = mapError . decoder . responseBody $ response
-         | s `elem` [400, 401, 402, 404] = gatherErrors . mapError . eitherDecode' . responseBody $ response
+         | s == 200                      = responseDecode response
+         | s `elem` [400, 401, 402, 404] = gatherErrors . responseDecode $ response
          | s `elem` [500, 502, 503, 504] = serverError
          | otherwise                     = unexpectedError s
+
+responseDecode :: (FromJSON a) => Response BCL.ByteString -> Either HailgunErrorResponse a
+responseDecode = mapError . eitherDecode . responseBody
 
 retError :: String -> Either HailgunErrorResponse a
 retError = Left . toHailgunError
@@ -282,7 +285,7 @@ getDomains :: HailgunContext -> Page -> IO (Either HailgunErrorResponse HailgunD
 getDomains context page = do
    request <- getRequest url context (toQueryParams . pageToParams $ page)
    response <- withManager tlsManagerSettings (httpLbs request)
-   return $ parseResponse response eitherDecode'
+   return $ parseResponse response
    where
       url = mailgunApiPrefix ++ "/domains"
 
