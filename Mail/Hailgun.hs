@@ -231,18 +231,13 @@ sendEmail context message = do
       url = mailgunApiPrefixContext context ++ "/messages"
 
 parseResponse :: Response BCL.ByteString -> (BCL.ByteString -> Either String a) -> Either HailgunErrorResponse a
-parseResponse response decoder = 
-   case NT.statusCode . responseStatus $ response of
-      200 -> convertGood . decoder . responseBody $ response
-      400 -> Left . convertBad . eitherDecode' . responseBody $ response
-      401 -> Left . convertBad . eitherDecode' . responseBody $ response
-      402 -> Left . convertBad . eitherDecode' . responseBody $ response
-      404 -> Left . convertBad . eitherDecode' . responseBody $ response
-      500 -> serverError
-      502 -> serverError
-      503 -> serverError
-      504 -> serverError
-      c   -> retError . unexpectedError $ c
+parseResponse response decoder = statusToResponse . NT.statusCode . responseStatus $ response
+   where
+      statusToResponse s
+         | s == 200                      = convertGood . decoder . responseBody $ response
+         | s `elem` [400, 401, 402, 404] = Left . convertBad . eitherDecode' . responseBody $ response
+         | s `elem` [500, 502, 503, 504] = serverError
+         | otherwise                     = retError . unexpectedError $ s
 
 retError :: String -> Either HailgunErrorResponse a
 retError = Left . toHailgunError
