@@ -72,4 +72,3 @@ library
 
    ghc-options:         -W
    default-language:    Haskell2010
-   extensions: CPP

@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE CPP, FlexibleContexts #-}
 -- | Hailgun is a Haskell wrapper around the <http://documentation.mailgun.com/api_reference.html Mailgun api's> that use
 -- type safety to ensure that you are sending a valid request to the Mailgun API's. Mailgun is a
 -- service that lets you send emails. It also contains a number of other email handling API's that
