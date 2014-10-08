@@ -24,6 +24,7 @@ module Mail.Hailgun
    ) where
 
 import            Control.Applicative ((<$>), (<*>), pure)
+import            Control.Arrow (second)
 import            Control.Monad (mzero)
 import            Control.Monad.IO.Class
 import            Control.Monad.Catch (MonadThrow(..))
@@ -234,10 +235,10 @@ parseResponse :: Response BCL.ByteString -> (BCL.ByteString -> Either String a) 
 parseResponse response decoder = statusToResponse . NT.statusCode . responseStatus $ response
    where
       statusToResponse s
-         | s == 200                      = convertGood . decoder . responseBody $ response
-         | s `elem` [400, 401, 402, 404] = Left . convertBad . eitherDecode' . responseBody $ response
+         | s == 200                      = mapError . decoder . responseBody $ response
+         | s `elem` [400, 401, 402, 404] = gatherErrors . mapError . eitherDecode' . responseBody $ response
          | s `elem` [500, 502, 503, 504] = serverError
-         | otherwise                     = retError . unexpectedError $ s
+         | otherwise                     = unexpectedError s
 
 retError :: String -> Either HailgunErrorResponse a
 retError = Left . toHailgunError
@@ -245,16 +246,14 @@ retError = Left . toHailgunError
 serverError :: Either HailgunErrorResponse a
 serverError = retError "Server Errors - something is wrong on Mailgun’s end"
 
-unexpectedError :: Int -> String
-unexpectedError x = "Unexpected Non-Standard Mailgun Error: " ++ show x
+unexpectedError :: Int -> Either HailgunErrorResponse a
+unexpectedError x = retError $ "Unexpected Non-Standard Mailgun Error: " ++ show x
 
-convertGood :: Either String a -> Either HailgunErrorResponse a
-convertGood (Left error) = Left . toHailgunError $ error
-convertGood (Right response) = Right response
+mapError :: Either String a -> Either HailgunErrorResponse a
+mapError = either (Left . toHailgunError) Right
 
-convertBad :: Either String HailgunErrorResponse -> HailgunErrorResponse
-convertBad (Left error) = toHailgunError error
-convertBad (Right e)    = e
+gatherErrors :: Either HailgunErrorResponse HailgunErrorResponse -> Either HailgunErrorResponse a
+gatherErrors = either Left Left
 
 mailgunApiPrefix :: String
 mailgunApiPrefix = "https://api.mailgun.net/v2" 
@@ -277,7 +276,7 @@ pageToParams page =
    ]
 
 toQueryParams :: [(BC.ByteString, BC.ByteString)] -> [(BC.ByteString, Maybe BC.ByteString)]
-toQueryParams = fmap (\(x, y) -> (x, Just y))
+toQueryParams = fmap (second Just)
 
 getDomains :: HailgunContext -> Page -> IO (Either HailgunErrorResponse HailgunDomainResponse)
 getDomains context page = do
@@ -301,7 +300,7 @@ postRequest url context formParams = do
    return $ applyHailgunAuth context requestWithBody
 
 applyHailgunAuth :: HailgunContext -> Request -> Request
-applyHailgunAuth context request = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context) request
+applyHailgunAuth context = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context)
 
 data HailgunDomainResponse = HailgunDomainResponse
    { hdrTotalCount :: Integer
