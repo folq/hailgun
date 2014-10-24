@@ -21,6 +21,7 @@ module Mail.Hailgun
    , HailgunDomain(..)
    , HailgunDomainResponse(..)
    , HailgunTime(..)
+   , toProxy
    ) where
 
 import            Control.Applicative ((<$>), (<*>), pure)
@@ -356,3 +357,6 @@ instance FromJSON HailgunTime where
 
 instance ParseTime HailgunTime where
    buildTime l = HailgunTime . zonedTimeToUTC . buildTime l
+
+toProxy :: String -> Int -> Proxy
+toProxy host port = Proxy (BC.pack host) port
