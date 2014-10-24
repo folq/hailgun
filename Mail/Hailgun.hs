@@ -36,7 +36,8 @@ import qualified  Data.Text as T
 import            Data.Time.Clock (UTCTime(..))
 import            Data.Time.LocalTime (zonedTimeToUTC)
 import            Text.Email.Validate
-import            Network.HTTP.Client (Request(..), Response(..), parseUrl, httpLbs, withManager, responseStatus, responseBody, applyBasicAuth, setQueryString)
+import            Network.HTTP.Client (Request(..), Response(..), parseUrl, httpLbs, withManager, responseStatus, responseBody, applyBasicAuth, setQueryString, Proxy(..))
+import            Network.HTTP.Client.Internal (addProxy)
 import            Network.HTTP.Client.MultipartFormData (Part(..), formDataBody, partBS)
 import            Network.HTTP.Client.TLS (tlsManagerSettings)
 import qualified  Network.HTTP.Types.Status as NT
@@ -182,6 +183,7 @@ data HailgunContext = HailgunContext
    -- TODO better way to represent a domain
    { hailgunDomain :: String -- ^ The domain of the mailgun account that you wish to send the emails through.
    , hailgunApiKey :: String -- ^ The API key for the mailgun account so that you can successfully make requests. Please note that it should include the 'key' prefix.
+   , hailgunProxy  :: Maybe Proxy
    }
 
 -- TODO replace with MailgunSendResponse
@@ -303,7 +305,13 @@ postRequest url context formParams = do
    return $ applyHailgunAuth context requestWithBody
 
 applyHailgunAuth :: HailgunContext -> Request -> Request
-applyHailgunAuth context = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context)
+applyHailgunAuth context = addRequestProxy (hailgunProxy context) . authRequest
+   where 
+      addRequestProxy :: Maybe Proxy -> Request -> Request
+      addRequestProxy (Just proxy) = addProxy (proxyHost proxy) (proxyPort proxy)
+      addRequestProxy _ = id
+
+      authRequest = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context)
 
 data HailgunDomainResponse = HailgunDomainResponse
    { hdrTotalCount :: Integer
