@@ -9,3 +9,7 @@
 
 # Config File
 /hailgun.send.conf
+
+# Idea
+/.idea
+*.iml
