@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module Mail.Hailgun.Internal.Data
     ( HailgunContext(..)
     , HailgunMessage(..)
@@ -7,11 +8,24 @@ module Mail.Hailgun.Internal.Data
     , MessageRecipients(..)
     , emptyMessageRecipients
     , HailgunErrorMessage
+    , HailgunTime(..)
     ) where
 
+import           Control.Applicative
+import           Data.Aeson
 import qualified Data.ByteString     as B
+import qualified Data.Text           as T
+import           Data.Time.Clock     (UTCTime (..))
+import           Data.Time.Format    (ParseTime (..), parseTime)
+import           Data.Time.LocalTime (zonedTimeToUTC)
 import qualified Network.HTTP.Client as NHC
 import qualified Text.Email.Validate as TEV
+
+#if MIN_VERSION_time(1,5,0)
+import           Data.Time.Format    (defaultTimeLocale)
+#else
+import           System.Locale       (defaultTimeLocale)
+#endif
 
 type UnverifiedEmailAddress = B.ByteString -- ^ Represents an email address that is not yet verified.
 type MessageSubject = String -- ^ Represents a message subject.
@@ -96,3 +110,15 @@ data MessageRecipients = MessageRecipients
 -- We should consider sending the HTML message as a quoted-string: http://hackage.haskell.org/package/dataenc-0.14.0.5/docs/Codec-Binary-QuotedPrintable.html
 -- We should use TagSoup to parse the constructed HTML message so that we can see if any inline images are expected:
 
+newtype HailgunTime = HailgunTime UTCTime
+   deriving (Eq, Ord, Show)
+
+-- Example Input: 'Thu, 13 Oct 2011 18:02:00 GMT'
+instance FromJSON HailgunTime where
+   parseJSON = withText "HailgunTime" $ \t ->
+      case parseTime defaultTimeLocale "%a, %d %b %Y %T %Z" (T.unpack t) of
+         Just d -> pure d
+         _      -> fail "could not parse Mailgun Style date"
+
+instance ParseTime HailgunTime where
+   buildTime l = HailgunTime . zonedTimeToUTC . buildTime l

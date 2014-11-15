@@ -57,6 +57,11 @@ library
    exposed-modules:     Mail.Hailgun
    other-modules:       Mail.Hailgun.Internal.Data
                         , Mail.Hailgun.AttachmentsSearch
+                        , Mail.Hailgun.Domains
+                        , Mail.Hailgun.SendEmail
+                        , Mail.Hailgun.Pagination
+                        , Mail.Hailgun.MailgunApi
+                        , Mail.Hailgun.Errors
 
    build-depends:         base               >= 4.6 && < 5
                         , bytestring         >= 0.10.4 && <= 0.11
