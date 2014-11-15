@@ -55,12 +55,12 @@ data MessageContent
 -- the content of the message. Any email that you wish to send via this api must be converted into
 -- this structure first. To create a message then please use the hailgunMessage interface.
 data HailgunMessage = HailgunMessage
-   { messageSubject  :: MessageSubject
-   , messageContent  :: MessageContent
-   , messageFrom     :: TEV.EmailAddress
-   , messageTo       :: [TEV.EmailAddress]
-   , messageCC       :: [TEV.EmailAddress]
-   , messageBCC      :: [TEV.EmailAddress]
+   { messageSubject :: MessageSubject
+   , messageContent :: MessageContent
+   , messageFrom    :: TEV.EmailAddress
+   , messageTo      :: [TEV.EmailAddress]
+   , messageCC      :: [TEV.EmailAddress]
+   , messageBCC     :: [TEV.EmailAddress]
    }
    -- TODO support sending attachments in the future
    -- TODO inline image support for the future
@@ -87,7 +87,12 @@ emptyMessageRecipients = MessageRecipients [] [] []
 -- | A collection of unverified email recipients separated into the To, CC and BCC groupings that
 -- email supports.
 data MessageRecipients = MessageRecipients
-   { recipientsTo    :: [UnverifiedEmailAddress] -- ^ The people to email directly.
-   , recipientsCC    :: [UnverifiedEmailAddress] -- ^ The people to \"Carbon Copy\" into the email. Honestly, why is that term not deprecated yet?
-   , recipientsBCC   :: [UnverifiedEmailAddress] -- ^ The people to \"Blind Carbon Copy\" into the email. There really needs to be a better name for this too.
+   { recipientsTo  :: [UnverifiedEmailAddress] -- ^ The people to email directly.
+   , recipientsCC  :: [UnverifiedEmailAddress] -- ^ The people to \"Carbon Copy\" into the email. Honestly, why is that term not deprecated yet?
+   , recipientsBCC :: [UnverifiedEmailAddress] -- ^ The people to \"Blind Carbon Copy\" into the email. There really needs to be a better name for this too.
    }
+
+-- The user should just give us a list of attachments and we should automatically make them inline or not
+-- We should consider sending the HTML message as a quoted-string: http://hackage.haskell.org/package/dataenc-0.14.0.5/docs/Codec-Binary-QuotedPrintable.html
+-- We should use TagSoup to parse the constructed HTML message so that we can see if any inline images are expected:
+

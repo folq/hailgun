@@ -1,2 +1,4 @@
-module Mail.Hailgun.Internal.SendEmail where
+module Mail.Hailgun.SendEmail.Internal where
+
+findInlineImages
 

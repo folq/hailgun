@@ -1,9 +1,10 @@
-{-# LANGUAGE CPP, FlexibleContexts #-}
+{-# LANGUAGE CPP              #-}
+{-# LANGUAGE FlexibleContexts #-}
 -- | Hailgun is a Haskell wrapper around the <http://documentation.mailgun.com/api_reference.html Mailgun api's> that use
 -- type safety to ensure that you are sending a valid request to the Mailgun API's. Mailgun is a
 -- service that lets you send emails. It also contains a number of other email handling API's that
 -- will be implimented in the future.
-module Mail.Hailgun 
+module Mail.Hailgun
    ( sendEmail
    , hailgunMessage
    , HailgunMessage
@@ -24,35 +25,44 @@ module Mail.Hailgun
    , toProxy
    ) where
 
-import Mail.Hailgun.Internal.Data
+import           Mail.Hailgun.Internal.Data
 
-import            Control.Applicative ((<$>), (<*>), pure)
-import            Control.Arrow (second)
-import            Control.Monad (mzero)
-import            Control.Monad.IO.Class
-import            Control.Monad.Catch (MonadThrow(..))
-import            Data.Aeson
-import qualified  Data.ByteString.Char8 as BC
-import qualified  Data.ByteString.Lazy.Char8 as BCL
-import qualified  Data.Text as T
-import            Data.Time.Clock (UTCTime(..))
-import            Data.Time.LocalTime (zonedTimeToUTC)
-import            Text.Email.Validate
-import            Network.HTTP.Client (Request(..), Response(..), parseUrl, httpLbs, withManager, responseStatus, responseBody, applyBasicAuth, setQueryString, Proxy(..))
-import            Network.HTTP.Client.Internal (addProxy)
-import            Network.HTTP.Client.MultipartFormData (Part(..), formDataBody, partBS)
-import            Network.HTTP.Client.TLS (tlsManagerSettings)
-import qualified  Network.HTTP.Types.Status as NT
-import qualified  Network.HTTP.Types.Method as NM
+import           Control.Applicative                   (pure, (<$>), (<*>))
+import           Control.Arrow                         (second)
+import           Control.Monad                         (mzero)
+import           Control.Monad.Catch                   (MonadThrow (..))
+import           Control.Monad.IO.Class
+import           Data.Aeson
+import qualified Data.ByteString.Char8                 as BC
+import qualified Data.ByteString.Lazy.Char8            as BCL
+import qualified Data.Text                             as T
+import           Data.Time.Clock                       (UTCTime (..))
+import           Data.Time.LocalTime                   (zonedTimeToUTC)
+import           Network.HTTP.Client                   (Proxy (..),
+                                                        Request (..),
+                                                        Response (..),
+                                                        applyBasicAuth, httpLbs,
+                                                        parseUrl, responseBody,
+                                                        responseStatus,
+                                                        setQueryString,
+                                                        withManager)
+import           Network.HTTP.Client.Internal          (addProxy)
+import           Network.HTTP.Client.MultipartFormData (Part (..), formDataBody,
+                                                        partBS)
+import           Network.HTTP.Client.TLS               (tlsManagerSettings)
+import qualified Network.HTTP.Types.Method             as NM
+import qualified Network.HTTP.Types.Status             as NT
+import           Text.Email.Validate
 
-import Data.Time.Format (ParseTime(..), parseTime)
+import           Data.Time.Format                      (ParseTime (..),
+                                                        parseTime)
 #if MIN_VERSION_time(1,5,0)
-import Data.Time.Format(defaultTimeLocale)
+import           Data.Time.Format                      (defaultTimeLocale)
 #else
-import System.Locale (defaultTimeLocale)
+import           System.Locale                         (defaultTimeLocale)
 #endif
 
-{- 
+{-
  - The basic rest API's look like this when used in curl:
  -
  - curl -s --user 'api:key-3ax6xnjp29jd6fds4gc373sgvjxteol0' \
@@ -69,7 +79,7 @@ import System.Locale (defaultTimeLocale)
 -- | A method to construct a HailgunMessage. You require a subject, content, From address and people
 -- to send the email to and it will give you back a valid Hailgun email message. Or it will error
 -- out while trying.
-hailgunMessage 
+hailgunMessage
    :: MessageSubject -- ^ The purpose of the email surmised.
    -> MessageContent -- ^ The full body of the email.
    -> UnverifiedEmailAddress -- ^ The email account that the recipients should respond to in order to get back to us.
@@ -80,7 +90,7 @@ hailgunMessage subject content sender recipients = do
    to    <- mapM validate (recipientsTo recipients)
    cc    <- mapM validate (recipientsCC recipients)
    bcc   <- mapM validate (recipientsBCC recipients)
-   return HailgunMessage 
+   return HailgunMessage
       { messageSubject = subject
       , messageContent = content
       , messageFrom = from
@@ -90,12 +100,12 @@ hailgunMessage subject content sender recipients = do
       }
 
 toPostVars :: HailgunMessage -> [(BC.ByteString, BC.ByteString)]
-toPostVars message = 
+toPostVars message =
    [ (BC.pack "from", toByteString . messageFrom $ message)
    , (BC.pack "subject", BC.pack $ messageSubject message)
-   ] ++ to 
-   ++ cc 
-   ++ bcc 
+   ] ++ to
+   ++ cc
+   ++ bcc
    ++ fromContent (messageContent message)
    where
       to = convertEmails (BC.pack "to") . messageTo $ message
@@ -145,7 +155,7 @@ encodeFormData fields = formDataBody (map toPart fields)
 
 -- | Send an email using the Mailgun API's. This method is capable of sending a message over the
 -- Mailgun service. All it needs is the appropriate context.
-sendEmail 
+sendEmail
    :: HailgunContext -- ^ The Mailgun context to operate in.
    -> HailgunMessage -- ^ The Hailgun message to be sent.
    -> IO (Either HailgunErrorResponse HailgunSendResponse) -- ^ The result of the sent email. Either a sent email or a successful send.
@@ -184,7 +194,7 @@ gatherErrors :: Either HailgunErrorResponse HailgunErrorResponse -> Either Hailg
 gatherErrors = either Left Left
 
 mailgunApiPrefix :: String
-mailgunApiPrefix = "https://api.mailgun.net/v2" 
+mailgunApiPrefix = "https://api.mailgun.net/v2"
 
 mailgunApiPrefixContext :: HailgunContext -> String
 mailgunApiPrefixContext context = mailgunApiPrefix ++ "/" ++ hailgunDomain context
@@ -198,7 +208,7 @@ data Page = Page
    }
 
 pageToParams :: Page -> [(BC.ByteString, BC.ByteString)]
-pageToParams page = 
+pageToParams page =
    [ (BC.pack "skip",   BC.pack . show . pageStart $ page)
    , (BC.pack "limit",  BC.pack . show . pageLength $ page)
    ]
@@ -229,7 +239,7 @@ postRequest url context formParams = do
 
 applyHailgunAuth :: HailgunContext -> Request -> Request
 applyHailgunAuth context = addRequestProxy (hailgunProxy context) . authRequest
-   where 
+   where
       addRequestProxy :: Maybe Proxy -> Request -> Request
       addRequestProxy (Just proxy) = addProxy (proxyHost proxy) (proxyPort proxy)
       addRequestProxy _ = id
@@ -238,7 +248,7 @@ applyHailgunAuth context = addRequestProxy (hailgunProxy context) . authRequest
 
 data HailgunDomainResponse = HailgunDomainResponse
    { hdrTotalCount :: Integer
-   , hdrItems :: [HailgunDomain]
+   , hdrItems      :: [HailgunDomain]
    }
 
 instance FromJSON HailgunDomainResponse where
