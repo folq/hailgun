@@ -3,9 +3,9 @@ module Mail.Hailgun.Message
     ) where
 
 import           Control.Applicative
-import qualified Data.ByteString.Char8          as BC
-import           Data.List                      (find)
-import           Mail.Hailgun.Attachment
+import qualified Data.ByteString.Char8            as BC
+import           Data.List                        (find)
+import           Mail.Hailgun.Attachment.Internal
 import           Mail.Hailgun.AttachmentsSearch
 import           Mail.Hailgun.Internal.Data
 import           Text.Email.Validate
@@ -18,14 +18,14 @@ hailgunMessage
    -> MessageContent -- ^ The full body of the email.
    -> UnverifiedEmailAddress -- ^ The email account that the recipients should respond to in order to get back to us.
    -> MessageRecipients -- ^ The people that should recieve this email.
-   -> [Attachment]
+   -> [Attachment] -- ^ The attachments that you want to attach to the email; standard or inline.
    -> Either HailgunErrorMessage HailgunMessage -- ^ Either an error while trying to create a valid message or a valid message.
 hailgunMessage subject content sender recipients simpleAttachments = do
    from  <- validate sender
    to    <- mapM validate (recipientsTo recipients)
    cc    <- mapM validate (recipientsCC recipients)
    bcc   <- mapM validate (recipientsBCC recipients)
-   attachments <- attachmentsInferredFromMessage content simpleAttachments
+   attachments <- attachmentsInferredFromMessage content cleanAttachments
    return HailgunMessage
       { messageSubject = subject
       , messageContent = content
@@ -35,7 +35,10 @@ hailgunMessage subject content sender recipients simpleAttachments = do
       , messageBCC = bcc
       , messageAttachments = attachments
       }
+   where
+      cleanAttachments = fmap cleanAttachmentFilePath simpleAttachments
 
+-- TODO clean up the attachments to make sure that you are only using the filename not the full file path
 attachmentsInferredFromMessage :: MessageContent -> [Attachment] -> Either String [SpecificAttachment]
 attachmentsInferredFromMessage mContent simpleAttachments =
    case mContent of

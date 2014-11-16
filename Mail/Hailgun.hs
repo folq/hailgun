@@ -6,8 +6,9 @@
 module Mail.Hailgun
    ( sendEmail
    , hailgunMessage
-   , HailgunMessage
+   , addAttachment
    , HailgunContext(..)
+   , HailgunMessage
    , MessageSubject
    , MessageContent(..)
    , MessageRecipients(..)
@@ -22,8 +23,8 @@ module Mail.Hailgun
    , HailgunDomainResponse(..)
    , HailgunTime(..)
    , toProxy
-   , addAttachment
    , Attachment(..)
+   , AttachmentBody(..)
    ) where
 
 import           Mail.Hailgun.Attachment
@@ -37,19 +38,9 @@ import           Mail.Hailgun.SendEmail
 import qualified Data.ByteString.Char8      as BC
 import           Network.HTTP.Client        (Proxy (..))
 
-{-
- - The basic rest API's look like this when used in curl:
- -
- - curl -s --user 'api:key-3ax6xnjp29jd6fds4gc373sgvjxteol0' \
- -     https://api.mailgun.net/v2/samples.mailgun.org/messages \
- -     -F from='Excited User <me@samples.mailgun.org>' \
- -     -F to=baz@example.com \
- -     -F to=bar@example.com \
- -     -F subject='Hello' \
- -     -F text='Testing some Mailgun awesomness!'
- -
- - This is what we need to emulate with this library.
- -}
-
-toProxy :: String -> Int -> Proxy
+-- | A convinience method to create a proxy for the HailgunContext.
+toProxy
+   :: String -- ^ The proxy host
+   -> Int -- ^ The proxy port
+   -> Proxy -- ^ The proxy configuration.
 toProxy host = Proxy (BC.pack host)

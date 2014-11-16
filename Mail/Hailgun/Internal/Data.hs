@@ -95,10 +95,19 @@ data HailgunMessage = HailgunMessage
    -- TODO custom mime header support
    -- TODO custom message data support
 
+-- | An Attachment that may be sent. It contains the file path of the attachment and the data that you wish to send in
+-- the attachment body. It is important to note that this data type makes no distinction between standard attachments
+-- and HTML inline attachments. See sendEmail for more details on how to make your attachments behave like inline
+-- attachments.
 data Attachment = Attachment
     { attachmentFilePath :: FilePath
     , attachmentBody     :: AttachmentBody
     }
+
+-- | An Attachment body is the raw data that you want to send with your attachment.
+data AttachmentBody
+   = AttachmentBS B.ByteString   -- ^ A strict ByteString representation of your data.
+   | AttachmentLBS BL.ByteString -- ^ A lazy ByteString representation of your data.
 
 data SpecificAttachment = SpecificAttachment
     { saType     :: AttachmentType
@@ -107,10 +116,6 @@ data SpecificAttachment = SpecificAttachment
     }
 
 data AttachmentType = Attached | Inline deriving (Eq, Show)
-
-data AttachmentBody
-   = AttachmentBS B.ByteString
-   | AttachmentLBS BL.ByteString
 
 -- | No recipients for your email. Useful singleton instance to avoid boilerplate in your code. For
 -- example:
@@ -133,6 +138,7 @@ data MessageRecipients = MessageRecipients
 -- We should consider sending the HTML message as a quoted-string: http://hackage.haskell.org/package/dataenc-0.14.0.5/docs/Codec-Binary-QuotedPrintable.html
 -- We should use TagSoup to parse the constructed HTML message so that we can see if any inline images are expected:
 
+-- | A wrapper for UTCTime so that we can always pass correctly formatted times to Mailgun.
 newtype HailgunTime = HailgunTime UTCTime
    deriving (Eq, Ord, Show)
 

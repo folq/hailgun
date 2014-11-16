@@ -16,7 +16,12 @@ import           Mail.Hailgun.Pagination
 import           Network.HTTP.Client        (httpLbs, withManager)
 import           Network.HTTP.Client.TLS    (tlsManagerSettings)
 
-getDomains :: HailgunContext -> Page -> IO (Either HailgunErrorResponse HailgunDomainResponse)
+-- | Make a request to Mailgun for the domains against your account. This is a paginated request so you must specify
+-- the pages of results that you wish to get back.
+getDomains
+   :: HailgunContext -- ^ The context to operate in which specifies which account to get the domains from.
+   -> Page -- ^ The page of results that you wish to see returned.
+   -> IO (Either HailgunErrorResponse HailgunDomainResponse) -- ^ The IO response which is either an error or the list of domains.
 getDomains context page = do
    request <- getRequest url context (toQueryParams . pageToParams $ page)
    response <- withManager tlsManagerSettings (httpLbs request)

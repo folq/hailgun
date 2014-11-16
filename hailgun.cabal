@@ -58,6 +58,7 @@ library
                         , Mail.Hailgun.Attachment
 
    other-modules:       Mail.Hailgun.Internal.Data
+                        , Mail.Hailgun.Attachment.Internal
                         , Mail.Hailgun.AttachmentsSearch
                         , Mail.Hailgun.Communication
                         , Mail.Hailgun.Domains
@@ -79,6 +80,7 @@ library
                         , http-types         == 0.8.*
                         , exceptions         >= 0.4
                         , tagsoup            == 0.13.*
+                        , filepath           >= 1 && < 2
 
    if flag(newtime)
       Build-Depends:    time == 1.5.*
