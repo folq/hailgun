@@ -11,6 +11,8 @@ import           Control.Monad.IO.Class                (MonadIO (..))
 import           Data.Aeson
 import qualified Data.ByteString.Char8                 as BC
 import qualified Data.ByteString.Lazy.Char8            as BLC
+import           Data.Foldable                         (foldMap)
+import           Data.Monoid
 import qualified Data.Text                             as T
 import           Mail.Hailgun.Errors
 import           Mail.Hailgun.Internal.Data
@@ -27,7 +29,7 @@ toQueryParams = fmap (second Just)
 getRequest :: (MonadThrow m) => String -> HailgunContext -> [(BC.ByteString, Maybe BC.ByteString)] -> m NC.Request
 getRequest url context queryParams = do
    initRequest <- NC.parseUrl url
-   let request = applyHailgunAuth context $ initRequest { NC.method = NM.methodGet, NC.checkStatus = ignoreStatus }
+   let request = appEndo (applyHailgunAuth context) $ initRequest { NC.method = NM.methodGet, NC.checkStatus = ignoreStatus }
    return $ NC.setQueryString queryParams request
 
 postRequest :: (MonadThrow m, MonadIO m) => String -> HailgunContext -> [(BC.ByteString, BC.ByteString)] -> m NC.Request
@@ -35,7 +37,7 @@ postRequest url context formParams = do
    initRequest <- NC.parseUrl url
    let request = initRequest { NC.method = NM.methodPost, NC.checkStatus = ignoreStatus }
    requestWithBody <- encodeFormData formParams request
-   return $ applyHailgunAuth context requestWithBody
+   return $ appEndo (applyHailgunAuth context) requestWithBody
 
 encodeFormData :: MonadIO m => [(BC.ByteString, BC.ByteString)] -> NC.Request -> m NC.Request
 encodeFormData fields = formDataBody (map toPart fields)
@@ -44,14 +46,17 @@ encodeFormData fields = formDataBody (map toPart fields)
       toPart (name, content) = partBS (T.pack . BC.unpack $ name) content
 
 -- TODO turn this into an Endo
-applyHailgunAuth :: HailgunContext -> NC.Request -> NC.Request
-applyHailgunAuth context = addRequestProxy (hailgunProxy context) . authRequest
-   where
-      addRequestProxy :: Maybe NC.Proxy -> NC.Request -> NC.Request
-      addRequestProxy (Just proxy) = addProxy (NC.proxyHost proxy) (NC.proxyPort proxy)
-      addRequestProxy _ = id
+applyHailgunAuth :: HailgunContext -> Endo NC.Request
+applyHailgunAuth context = addRequestProxy (hailgunProxy context) <> authRequest context
 
-      authRequest = NC.applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context)
+addRequestProxy :: Maybe NC.Proxy -> Endo NC.Request
+addRequestProxy = foldMap addProxy'
+
+authRequest :: HailgunContext -> Endo NC.Request
+authRequest context = Endo $ NC.applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context)
+
+addProxy' :: NC.Proxy -> Endo NC.Request
+addProxy' proxy = Endo $ addProxy (NC.proxyHost proxy) (NC.proxyPort proxy)
 
 parseResponse :: (FromJSON a) => NC.Response BLC.ByteString -> Either HailgunErrorResponse a
 parseResponse response = statusToResponse . NT.statusCode . NC.responseStatus $ response
