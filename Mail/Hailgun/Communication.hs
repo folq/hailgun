@@ -14,13 +14,7 @@ import qualified Data.ByteString.Lazy.Char8            as BLC
 import qualified Data.Text                             as T
 import           Mail.Hailgun.Errors
 import           Mail.Hailgun.Internal.Data
-import           Network.HTTP.Client                   (Proxy (..),
-                                                        Request (..),
-                                                        Response (..),
-                                                        applyBasicAuth,
-                                                        parseUrl, responseBody,
-                                                        responseStatus,
-                                                        setQueryString)
+import qualified Network.HTTP.Client                   as NC
 import           Network.HTTP.Client.Internal          (addProxy)
 import           Network.HTTP.Client.MultipartFormData (Part (..), formDataBody,
                                                         partBS)
@@ -30,36 +24,37 @@ import qualified Network.HTTP.Types.Status             as NT
 toQueryParams :: [(BC.ByteString, BC.ByteString)] -> [(BC.ByteString, Maybe BC.ByteString)]
 toQueryParams = fmap (second Just)
 
-getRequest :: (MonadThrow m) => String -> HailgunContext -> [(BC.ByteString, Maybe BC.ByteString)] -> m Request
+getRequest :: (MonadThrow m) => String -> HailgunContext -> [(BC.ByteString, Maybe BC.ByteString)] -> m NC.Request
 getRequest url context queryParams = do
-   initRequest <- parseUrl url
-   let request = applyHailgunAuth context $ initRequest { method = NM.methodGet, checkStatus = ignoreStatus }
-   return $ setQueryString queryParams request
+   initRequest <- NC.parseUrl url
+   let request = applyHailgunAuth context $ initRequest { NC.method = NM.methodGet, NC.checkStatus = ignoreStatus }
+   return $ NC.setQueryString queryParams request
 
-postRequest :: (MonadThrow m, MonadIO m) => String -> HailgunContext -> [(BC.ByteString, BC.ByteString)] -> m Request
+postRequest :: (MonadThrow m, MonadIO m) => String -> HailgunContext -> [(BC.ByteString, BC.ByteString)] -> m NC.Request
 postRequest url context formParams = do
-   initRequest <- parseUrl url
-   let request = initRequest { method = NM.methodPost, checkStatus = ignoreStatus }
+   initRequest <- NC.parseUrl url
+   let request = initRequest { NC.method = NM.methodPost, NC.checkStatus = ignoreStatus }
    requestWithBody <- encodeFormData formParams request
    return $ applyHailgunAuth context requestWithBody
 
-encodeFormData :: MonadIO m => [(BC.ByteString, BC.ByteString)] -> Request -> m Request
+encodeFormData :: MonadIO m => [(BC.ByteString, BC.ByteString)] -> NC.Request -> m NC.Request
 encodeFormData fields = formDataBody (map toPart fields)
    where
       toPart :: (BC.ByteString, BC.ByteString) -> Part
       toPart (name, content) = partBS (T.pack . BC.unpack $ name) content
 
-applyHailgunAuth :: HailgunContext -> Request -> Request
+-- TODO turn this into an Endo
+applyHailgunAuth :: HailgunContext -> NC.Request -> NC.Request
 applyHailgunAuth context = addRequestProxy (hailgunProxy context) . authRequest
    where
-      addRequestProxy :: Maybe Proxy -> Request -> Request
-      addRequestProxy (Just proxy) = addProxy (proxyHost proxy) (proxyPort proxy)
+      addRequestProxy :: Maybe NC.Proxy -> NC.Request -> NC.Request
+      addRequestProxy (Just proxy) = addProxy (NC.proxyHost proxy) (NC.proxyPort proxy)
       addRequestProxy _ = id
 
-      authRequest = applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context)
+      authRequest = NC.applyBasicAuth (BC.pack "api") (BC.pack . hailgunApiKey $ context)
 
-parseResponse :: (FromJSON a) => Response BLC.ByteString -> Either HailgunErrorResponse a
-parseResponse response = statusToResponse . NT.statusCode . responseStatus $ response
+parseResponse :: (FromJSON a) => NC.Response BLC.ByteString -> Either HailgunErrorResponse a
+parseResponse response = statusToResponse . NT.statusCode . NC.responseStatus $ response
    where
       statusToResponse s
          | s == 200                      = responseDecode response
@@ -67,8 +62,8 @@ parseResponse response = statusToResponse . NT.statusCode . responseStatus $ res
          | s `elem` [500, 502, 503, 504] = serverError
          | otherwise                     = unexpectedError s
 
-responseDecode :: (FromJSON a) => Response BLC.ByteString -> Either HailgunErrorResponse a
-responseDecode = mapError . eitherDecode . responseBody
+responseDecode :: (FromJSON a) => NC.Response BLC.ByteString -> Either HailgunErrorResponse a
+responseDecode = mapError . eitherDecode . NC.responseBody
 
 ignoreStatus :: a -> b -> c -> Maybe d
 ignoreStatus _ _ _ = Nothing
