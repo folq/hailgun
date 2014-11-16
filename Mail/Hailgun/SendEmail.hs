@@ -4,17 +4,20 @@ module Mail.Hailgun.SendEmail
     ) where
 
 import           Control.Applicative
-import           Control.Monad              (mzero)
+import           Control.Monad                         (mzero)
 import           Data.Aeson
-import qualified Data.ByteString.Char8      as BC
-import qualified Data.Text                  as T
+import qualified Data.ByteString.Char8                 as BC
+import qualified Data.Text                             as T
 import           Mail.Hailgun.Communication
 import           Mail.Hailgun.Errors
 import           Mail.Hailgun.Internal.Data
 import           Mail.Hailgun.MailgunApi
-import           Network.HTTP.Client        (httpLbs, withManager)
-import           Network.HTTP.Client.TLS    (tlsManagerSettings)
-import           Text.Email.Validate        (EmailAddress, toByteString)
+import           Mail.Hailgun.PartUtil
+import           Network.HTTP.Client                   (httpLbs, withManager)
+import qualified Network.HTTP.Client.MultipartFormData as NCM
+import           Network.HTTP.Client.TLS               (tlsManagerSettings)
+import           Text.Email.Validate                   (EmailAddress,
+                                                        toByteString)
 
 -- | Send an email using the Mailgun API's. This method is capable of sending a message over the
 -- Mailgun service. All it needs is the appropriate context.
@@ -23,14 +26,20 @@ sendEmail
    -> HailgunMessage -- ^ The Hailgun message to be sent.
    -> IO (Either HailgunErrorResponse HailgunSendResponse) -- ^ The result of the sent email. Either a sent email or a successful send.
 sendEmail context message = do
-   request <- postRequest url context (toPostVars message)
+   request <- postRequest url context (toEmailParts message)
    response <- withManager tlsManagerSettings (httpLbs request)
    return $ parseResponse response
    where
       url = mailgunApiPrefixContext context ++ "/messages"
 
-toPostVars :: HailgunMessage -> [(BC.ByteString, BC.ByteString)]
-toPostVars message =
+toEmailParts :: HailgunMessage -> [NCM.Part]
+toEmailParts message = params ++ attachmentParts
+   where
+      params = map paramsToPart . toSimpleEmailParts $ message
+      attachmentParts = map attachmentToPart . messageAttachments $ message
+
+toSimpleEmailParts :: HailgunMessage -> [(BC.ByteString, BC.ByteString)]
+toSimpleEmailParts message =
    [ (BC.pack "from", toByteString . messageFrom $ message)
    , (BC.pack "subject", BC.pack $ messageSubject message)
    ] ++ to

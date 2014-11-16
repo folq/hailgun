@@ -22,17 +22,19 @@ module Mail.Hailgun
    , HailgunDomainResponse(..)
    , HailgunTime(..)
    , toProxy
+   , addAttachment
    ) where
 
+import           Mail.Hailgun.Attachment
 import           Mail.Hailgun.Domains
 import           Mail.Hailgun.Errors
 import           Mail.Hailgun.Internal.Data
+import           Mail.Hailgun.Message
 import           Mail.Hailgun.Pagination
 import           Mail.Hailgun.SendEmail
 
 import qualified Data.ByteString.Char8      as BC
 import           Network.HTTP.Client        (Proxy (..))
-import           Text.Email.Validate
 
 {-
  - The basic rest API's look like this when used in curl:
@@ -47,29 +49,6 @@ import           Text.Email.Validate
  -
  - This is what we need to emulate with this library.
  -}
-
--- | A method to construct a HailgunMessage. You require a subject, content, From address and people
--- to send the email to and it will give you back a valid Hailgun email message. Or it will error
--- out while trying.
-hailgunMessage
-   :: MessageSubject -- ^ The purpose of the email surmised.
-   -> MessageContent -- ^ The full body of the email.
-   -> UnverifiedEmailAddress -- ^ The email account that the recipients should respond to in order to get back to us.
-   -> MessageRecipients -- ^ The people that should recieve this email.
-   -> Either HailgunErrorMessage HailgunMessage -- ^ Either an error while trying to create a valid message or a valid message.
-hailgunMessage subject content sender recipients = do
-   from  <- validate sender
-   to    <- mapM validate (recipientsTo recipients)
-   cc    <- mapM validate (recipientsCC recipients)
-   bcc   <- mapM validate (recipientsBCC recipients)
-   return HailgunMessage
-      { messageSubject = subject
-      , messageContent = content
-      , messageFrom = from
-      , messageTo = to
-      , messageCC = cc
-      , messageBCC = bcc
-      }
 
 toProxy :: String -> Int -> Proxy
 toProxy host = Proxy (BC.pack host)

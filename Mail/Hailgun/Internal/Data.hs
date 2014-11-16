@@ -9,22 +9,27 @@ module Mail.Hailgun.Internal.Data
     , emptyMessageRecipients
     , HailgunErrorMessage
     , HailgunTime(..)
+    , Attachment(..)
+    , SpecificAttachment(..)
+    , AttachmentBody(..)
+    , AttachmentType(..)
     ) where
 
 import           Control.Applicative
 import           Data.Aeson
-import qualified Data.ByteString     as B
-import qualified Data.Text           as T
-import           Data.Time.Clock     (UTCTime (..))
-import           Data.Time.Format    (ParseTime (..), parseTime)
-import           Data.Time.LocalTime (zonedTimeToUTC)
-import qualified Network.HTTP.Client as NHC
-import qualified Text.Email.Validate as TEV
+import qualified Data.ByteString      as B
+import qualified Data.ByteString.Lazy as BL
+import qualified Data.Text            as T
+import           Data.Time.Clock      (UTCTime (..))
+import           Data.Time.Format     (ParseTime (..), parseTime)
+import           Data.Time.LocalTime  (zonedTimeToUTC)
+import qualified Network.HTTP.Client  as NHC
+import qualified Text.Email.Validate  as TEV
 
 #if MIN_VERSION_time(1,5,0)
-import           Data.Time.Format    (defaultTimeLocale)
+import           Data.Time.Format     (defaultTimeLocale)
 #else
-import           System.Locale       (defaultTimeLocale)
+import           System.Locale        (defaultTimeLocale)
 #endif
 
 type UnverifiedEmailAddress = B.ByteString -- ^ Represents an email address that is not yet verified.
@@ -69,12 +74,13 @@ data MessageContent
 -- the content of the message. Any email that you wish to send via this api must be converted into
 -- this structure first. To create a message then please use the hailgunMessage interface.
 data HailgunMessage = HailgunMessage
-   { messageSubject :: MessageSubject
-   , messageContent :: MessageContent
-   , messageFrom    :: TEV.EmailAddress
-   , messageTo      :: [TEV.EmailAddress]
-   , messageCC      :: [TEV.EmailAddress]
-   , messageBCC     :: [TEV.EmailAddress]
+   { messageSubject     :: MessageSubject
+   , messageContent     :: MessageContent
+   , messageFrom        :: TEV.EmailAddress
+   , messageTo          :: [TEV.EmailAddress]
+   , messageCC          :: [TEV.EmailAddress]
+   , messageBCC         :: [TEV.EmailAddress]
+   , messageAttachments :: [SpecificAttachment]
    }
    -- TODO support sending attachments in the future
    -- TODO inline image support for the future
@@ -88,6 +94,23 @@ data HailgunMessage = HailgunMessage
    -- TODO o:tracking-opens support
    -- TODO custom mime header support
    -- TODO custom message data support
+
+data Attachment = Attachment
+    { attachmentFilePath :: FilePath
+    , attachmentBody     :: AttachmentBody
+    }
+
+data SpecificAttachment = SpecificAttachment
+    { saType     :: AttachmentType
+    , saFilePath :: FilePath
+    , saBody     :: AttachmentBody
+    }
+
+data AttachmentType = Attached | Inline deriving (Eq, Show)
+
+data AttachmentBody
+   = AttachmentBS B.ByteString
+   | AttachmentLBS BL.ByteString
 
 -- | No recipients for your email. Useful singleton instance to avoid boilerplate in your code. For
 -- example:

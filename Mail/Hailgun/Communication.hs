@@ -13,13 +13,11 @@ import qualified Data.ByteString.Char8                 as BC
 import qualified Data.ByteString.Lazy.Char8            as BLC
 import           Data.Foldable                         (foldMap)
 import           Data.Monoid
-import qualified Data.Text                             as T
 import           Mail.Hailgun.Errors
 import           Mail.Hailgun.Internal.Data
 import qualified Network.HTTP.Client                   as NC
 import           Network.HTTP.Client.Internal          (addProxy)
-import           Network.HTTP.Client.MultipartFormData (Part (..), formDataBody,
-                                                        partBS)
+import           Network.HTTP.Client.MultipartFormData (Part (..), formDataBody)
 import qualified Network.HTTP.Types.Method             as NM
 import qualified Network.HTTP.Types.Status             as NT
 
@@ -32,20 +30,14 @@ getRequest url context queryParams = do
    let request = appEndo (applyHailgunAuth context) $ initRequest { NC.method = NM.methodGet, NC.checkStatus = ignoreStatus }
    return $ NC.setQueryString queryParams request
 
-postRequest :: (MonadThrow m, MonadIO m) => String -> HailgunContext -> [(BC.ByteString, BC.ByteString)] -> m NC.Request
-postRequest url context formParams = do
+postRequest :: (MonadThrow m, MonadIO m) => String -> HailgunContext -> [Part] -> m NC.Request
+postRequest url context parts = do
    initRequest <- NC.parseUrl url
    let request = initRequest { NC.method = NM.methodPost, NC.checkStatus = ignoreStatus }
-   requestWithBody <- encodeFormData formParams request
+   requestWithBody <- formDataBody parts request
+   --requestWithBody <- encodeFormData formParams request
    return $ appEndo (applyHailgunAuth context) requestWithBody
 
-encodeFormData :: MonadIO m => [(BC.ByteString, BC.ByteString)] -> NC.Request -> m NC.Request
-encodeFormData fields = formDataBody (map toPart fields)
-   where
-      toPart :: (BC.ByteString, BC.ByteString) -> Part
-      toPart (name, content) = partBS (T.pack . BC.unpack $ name) content
-
--- TODO turn this into an Endo
 applyHailgunAuth :: HailgunContext -> Endo NC.Request
 applyHailgunAuth context = addRequestProxy (hailgunProxy context) <> authRequest context
 
