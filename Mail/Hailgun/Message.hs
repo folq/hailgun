@@ -2,11 +2,9 @@ module Mail.Hailgun.Message
     ( hailgunMessage
     ) where
 
-import           Control.Arrow
-import           Control.Monad                  (guard)
+import           Control.Applicative
 import qualified Data.ByteString.Char8          as BC
-import           Data.List                      (partition)
-import           Data.Monoid
+import           Data.List                      (find)
 import           Mail.Hailgun.Attachment
 import           Mail.Hailgun.AttachmentsSearch
 import           Mail.Hailgun.Internal.Data
@@ -48,15 +46,28 @@ attachmentsInferredFromMessage mContent simpleAttachments =
 
 convertAttachments :: [Attachment] -> [InlineImage] -> Either String [SpecificAttachment]
 convertAttachments attachments images = do
-   let splitAttachments = partition (isAttachmentInlineImage images) attachments
-   guard (length images == (length . fst $ splitAttachments))
-   return . appendPair $ (fmap toInlineAttachment *** fmap toStandardAttachment) splitAttachments
+   inlineAttachments <- sequence (fmap (findAttachmentForImage attachments) images)
+   let standardAttachments = toStandardAttachment <$> nonSpecificAttachments attachments inlineAttachments
+   return $ inlineAttachments ++ standardAttachments
 
-appendPair :: Monoid a => (a, a) -> a
-appendPair = uncurry mappend
+nonSpecificAttachments :: [Attachment] -> [SpecificAttachment] -> [Attachment]
+nonSpecificAttachments simpleAttachments specificAttachments =
+   filter (\sa -> attachmentFilePath sa `notElem` specificFilePaths) simpleAttachments
+   where
+      specificFilePaths = fmap saFilePath specificAttachments
 
-isAttachmentInlineImage :: [InlineImage] -> Attachment -> Bool
-isAttachmentInlineImage images attachment = or . fmap (attachmentForInlineImage attachment) $ images
+findAttachmentForImage :: [Attachment] -> InlineImage -> Either String SpecificAttachment
+findAttachmentForImage attachments image =
+   case find (`attachmentForInlineImage` image) attachments of
+      Nothing -> Left . missingInlineImageErrorMessage $ image
+      Just attachment -> Right . toInlineAttachment $ attachment
+
+missingInlineImageErrorMessage :: InlineImage -> String
+missingInlineImageErrorMessage image =
+   "Could not find an attachment for the inline image: "
+   ++ (show . imageSrc $ image)
+   ++ ". Either provide the attachment or remove the inline image from the HTML email."
+
 
 attachmentForInlineImage :: Attachment -> InlineImage -> Bool
 attachmentForInlineImage attachment image = (BC.pack . attachmentFilePath $ attachment) == imageSrc image

@@ -23,6 +23,7 @@ module Mail.Hailgun
    , HailgunTime(..)
    , toProxy
    , addAttachment
+   , Attachment(..)
    ) where
 
 import           Mail.Hailgun.Attachment
