@@ -38,7 +38,6 @@ hailgunMessage subject content sender recipients simpleAttachments = do
    where
       cleanAttachments = fmap cleanAttachmentFilePath simpleAttachments
 
--- TODO clean up the attachments to make sure that you are only using the filename not the full file path
 attachmentsInferredFromMessage :: MessageContent -> [Attachment] -> Either String [SpecificAttachment]
 attachmentsInferredFromMessage mContent simpleAttachments =
    case mContent of
