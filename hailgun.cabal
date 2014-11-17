@@ -10,7 +10,7 @@ name:                hailgun
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.2.1.0
+version:             0.3.0.0
 
 -- A short (one-line) description of the package.
 synopsis:            Mailgun REST api interface for Haskell.
@@ -55,6 +55,20 @@ Flag NewTime
 
 library
    exposed-modules:     Mail.Hailgun
+                        , Mail.Hailgun.Attachment
+
+   other-modules:       Mail.Hailgun.Internal.Data
+                        , Mail.Hailgun.Attachment.Internal
+                        , Mail.Hailgun.AttachmentsSearch
+                        , Mail.Hailgun.Communication
+                        , Mail.Hailgun.Domains
+                        , Mail.Hailgun.Errors
+                        , Mail.Hailgun.MailgunApi
+                        , Mail.Hailgun.Message
+                        , Mail.Hailgun.Pagination
+                        , Mail.Hailgun.PartUtil
+                        , Mail.Hailgun.SendEmail
+
    build-depends:         base               >= 4.6 && < 5
                         , bytestring         >= 0.10.4 && <= 0.11
                         , aeson              == 0.7.*
@@ -65,6 +79,9 @@ library
                         , email-validate     == 2.0.*
                         , http-types         == 0.8.*
                         , exceptions         >= 0.4
+                        , tagsoup            == 0.13.*
+                        , filepath           >= 1 && < 2
+
    if flag(newtime)
       Build-Depends:    time == 1.5.*
    else
