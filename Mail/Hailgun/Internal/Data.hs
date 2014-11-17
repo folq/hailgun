@@ -82,8 +82,6 @@ data HailgunMessage = HailgunMessage
    , messageBCC         :: [TEV.EmailAddress]
    , messageAttachments :: [SpecificAttachment]
    }
-   -- TODO support sending attachments in the future
-   -- TODO inline image support for the future
    -- TODO o:tag support
    -- TODO o:campaign support
    -- messageDKIMSupport :: Bool TODO o:dkim support
