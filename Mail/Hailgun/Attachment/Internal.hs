@@ -5,7 +5,7 @@ module Mail.Hailgun.Attachment.Internal
     ) where
 
 import           Mail.Hailgun.Internal.Data
-import System.FilePath (takeFileName)
+import           System.FilePath            (takeFileName)
 
 toStandardAttachment :: Attachment -> SpecificAttachment
 toStandardAttachment (Attachment filepath body) = SpecificAttachment Attached filepath body
