@@ -8,6 +8,7 @@ import           Control.Monad                         (mzero)
 import           Data.Aeson
 import qualified Data.ByteString.Char8                 as BC
 import qualified Data.Text                             as T
+import qualified Data.Text.Encoding                    as T
 import           Mail.Hailgun.Communication
 import           Mail.Hailgun.Errors
 import           Mail.Hailgun.Internal.Data
@@ -41,7 +42,7 @@ toEmailParts message = params ++ attachmentParts
 toSimpleEmailParts :: HailgunMessage -> [(BC.ByteString, BC.ByteString)]
 toSimpleEmailParts message =
    [ (BC.pack "from", toByteString . messageFrom $ message)
-   , (BC.pack "subject", BC.pack $ messageSubject message)
+   , (BC.pack "subject", T.encodeUtf8 $ messageSubject message)
    ] ++ to
    ++ cc
    ++ bcc
