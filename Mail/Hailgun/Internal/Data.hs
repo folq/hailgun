@@ -33,7 +33,7 @@ import           System.Locale        (defaultTimeLocale)
 #endif
 
 type UnverifiedEmailAddress = B.ByteString -- ^ Represents an email address that is not yet verified.
-type MessageSubject = String -- ^ Represents a message subject.
+type MessageSubject = T.Text -- ^ Represents a message subject.
 
 -- | A generic error message that is returned by the Hailgun library.
 type HailgunErrorMessage = String
