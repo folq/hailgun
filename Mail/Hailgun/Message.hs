@@ -41,19 +41,17 @@ hailgunMessage subject content sender recipients simpleAttachments = do
 attachmentsInferredFromMessage :: MessageContent -> [Attachment] -> Either String [SpecificAttachment]
 attachmentsInferredFromMessage mContent simpleAttachments =
    case mContent of
-      (TextOnly _) -> return $ fmap toStandardAttachment simpleAttachments
-      th@(TextAndHTML {}) -> do
-         let inlineImageNames = findInlineImagesInHtmlEmail . htmlContent $ th
-         convertAttachments simpleAttachments inlineImageNames
+      (TextOnly _) -> return . fmap toStandardAttachment $ simpleAttachments
+      th@(TextAndHTML {}) -> convertAttachments simpleAttachments (findInlineImagesInHtmlEmail . htmlContent $ th)
 
 convertAttachments :: [Attachment] -> [InlineImage] -> Either String [SpecificAttachment]
 convertAttachments attachments images = do
    inlineAttachments <- sequence (fmap (findAttachmentForImage attachments) images)
-   let standardAttachments = toStandardAttachment <$> nonSpecificAttachments attachments inlineAttachments
+   let standardAttachments = toStandardAttachment <$> attachments `notInSpecific` inlineAttachments
    return $ inlineAttachments ++ standardAttachments
 
-nonSpecificAttachments :: [Attachment] -> [SpecificAttachment] -> [Attachment]
-nonSpecificAttachments simpleAttachments specificAttachments =
+notInSpecific :: [Attachment] -> [SpecificAttachment] -> [Attachment]
+notInSpecific simpleAttachments specificAttachments =
    filter (\sa -> attachmentFilePath sa `notElem` specificFilePaths) simpleAttachments
    where
       specificFilePaths = fmap saFilePath specificAttachments
@@ -70,7 +68,5 @@ missingInlineImageErrorMessage image =
    ++ (show . imageSrc $ image)
    ++ ". Either provide the attachment or remove the inline image from the HTML email."
 
-
 attachmentForInlineImage :: Attachment -> InlineImage -> Bool
 attachmentForInlineImage attachment image = (BC.pack . attachmentFilePath $ attachment) == imageSrc image
-
