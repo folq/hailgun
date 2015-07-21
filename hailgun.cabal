@@ -76,7 +76,7 @@ library
                         , transformers       >= 0.3 && <0.5
                         , http-client        == 0.4.*
                         , http-client-tls    == 0.2.*
-                        , email-validate     == 2.1.*
+                        , email-validate     >= 2.0 && <2.2
                         , http-types         == 0.8.*
                         , exceptions         == 0.8.*
                         , tagsoup            == 0.13.*
