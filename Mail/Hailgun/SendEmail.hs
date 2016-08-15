@@ -65,6 +65,7 @@ data HailgunSendResponse = HailgunSendResponse
    { hsrMessage :: String -- ^ The freeform message from the mailgun API.
    , hsrId      :: String -- ^ The ID of the message that has been accepted by the Mailgun api.
    }
+   deriving (Show)
 
 instance FromJSON HailgunSendResponse where
    parseJSON (Object v) = HailgunSendResponse
