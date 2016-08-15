@@ -148,4 +148,8 @@ instance FromJSON HailgunTime where
          _      -> fail "could not parse Mailgun Style date"
 
 instance ParseTime HailgunTime where
+#if MIN_VERSION_time(1,6,0)
+   buildTime l input = HailgunTime . zonedTimeToUTC <$> buildTime l input
+#else
    buildTime l = HailgunTime . zonedTimeToUTC . buildTime l
+#endif
