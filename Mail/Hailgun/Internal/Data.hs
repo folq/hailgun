@@ -46,6 +46,7 @@ data HailgunContext = HailgunContext
    , hailgunApiKey :: String -- ^ The API key for the mailgun account so that you can successfully make requests. Please note that it should include the 'key' prefix.
    , hailgunProxy  :: Maybe NHC.Proxy
    }
+   deriving (Show)
 
 -- | Any email content that you wish to send should be encoded into these types before it is sent.
 -- Currently, according to the API, you should always send a Text Only part in the email and you can
@@ -68,6 +69,8 @@ data MessageContent
       { textContent :: B.ByteString -- ^ The text content that you wish to send (please note that many clients will take the HTML version first if it is present but that the text version is a great fallback).
       , htmlContent :: B.ByteString -- ^ The HTML content that you wish to send.
       }
+   deriving (Show)
+
 
 -- | A Hailgun Email message that may be sent. It contains important information such as the address
 -- that the email is from, the addresses that it should be going to, the subject of the message and
@@ -82,6 +85,7 @@ data HailgunMessage = HailgunMessage
    , messageBCC         :: [TEV.EmailAddress]
    , messageAttachments :: [SpecificAttachment]
    }
+   deriving (Show)
    -- TODO o:tag support
    -- TODO o:campaign support
    -- messageDKIMSupport :: Bool TODO o:dkim support
@@ -101,17 +105,20 @@ data Attachment = Attachment
     { attachmentFilePath :: FilePath
     , attachmentBody     :: AttachmentBody
     }
+    deriving (Show)
 
 -- | An Attachment body is the raw data that you want to send with your attachment.
 data AttachmentBody
    = AttachmentBS B.ByteString   -- ^ A strict ByteString representation of your data.
    | AttachmentLBS BL.ByteString -- ^ A lazy ByteString representation of your data.
+   deriving (Show)
 
 data SpecificAttachment = SpecificAttachment
     { saType     :: AttachmentType
     , saFilePath :: FilePath
     , saBody     :: AttachmentBody
     }
+    deriving (Show)
 
 data AttachmentType = Attached | Inline deriving (Eq, Show)
 
@@ -131,6 +138,7 @@ data MessageRecipients = MessageRecipients
    , recipientsCC  :: [UnverifiedEmailAddress] -- ^ The people to \"Carbon Copy\" into the email. Honestly, why is that term not deprecated yet?
    , recipientsBCC :: [UnverifiedEmailAddress] -- ^ The people to \"Blind Carbon Copy\" into the email. There really needs to be a better name for this too.
    }
+   deriving (Show)
 
 -- The user should just give us a list of attachments and we should automatically make them inline or not
 -- We should consider sending the HTML message as a quoted-string: http://hackage.haskell.org/package/dataenc-0.14.0.5/docs/Codec-Binary-QuotedPrintable.html

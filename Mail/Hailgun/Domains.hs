@@ -33,6 +33,7 @@ data HailgunDomainResponse = HailgunDomainResponse
    { hdrTotalCount :: Integer
    , hdrItems      :: [HailgunDomain]
    }
+   deriving (Show)
 
 instance FromJSON HailgunDomainResponse where
    parseJSON (Object v) = HailgunDomainResponse

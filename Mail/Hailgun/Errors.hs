@@ -18,6 +18,7 @@ import qualified Data.Text           as T
 data HailgunErrorResponse = HailgunErrorResponse
    { herMessage :: String -- ^ A generic message describing the error.
    }
+   deriving (Show)
 
 toHailgunError :: String -> HailgunErrorResponse
 toHailgunError = HailgunErrorResponse

@@ -11,6 +11,7 @@ data Page = Page
    { pageStart  :: Integer
    , pageLength :: Integer
    }
+   deriving (Show)
 
 pageToParams :: Page -> [(BC.ByteString, BC.ByteString)]
 pageToParams page =
