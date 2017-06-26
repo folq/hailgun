@@ -54,10 +54,10 @@ Flag NewTime
 
 
 library
-   exposed-modules:     Mail.Hailgun
+   exposed-modules:       Mail.Hailgun
                         , Mail.Hailgun.Attachment
 
-   other-modules:       Mail.Hailgun.Internal.Data
+   other-modules:         Mail.Hailgun.Internal.Data
                         , Mail.Hailgun.Attachment.Internal
                         , Mail.Hailgun.AttachmentsSearch
                         , Mail.Hailgun.Communication
