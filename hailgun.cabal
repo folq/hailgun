@@ -85,7 +85,7 @@ library
                         , filepath           >= 1 && < 2
 
    if flag(newtime)
-      Build-Depends:    time >= 1.5 && < 1.7
+      Build-Depends:    time >= 1.5
    else
       Build-Depends:    time >= 1.2 && < 1.5, old-locale == 1.*
 
