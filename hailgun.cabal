@@ -10,7 +10,7 @@ name:                hailgun
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.4.1.4
+version:             0.4.1.5
 
 -- A short (one-line) description of the package.
 synopsis:            Mailgun REST api interface for Haskell.
@@ -85,7 +85,7 @@ library
                         , filepath           >= 1 && < 2
 
    if flag(newtime)
-      Build-Depends:    time >= 1.5 && < 1.7
+      Build-Depends:    time >= 1.5
    else
       Build-Depends:    time >= 1.2 && < 1.5, old-locale == 1.*
 
