@@ -8,7 +8,6 @@ import           Data.List                        (find)
 import           Mail.Hailgun.Attachment.Internal
 import           Mail.Hailgun.AttachmentsSearch
 import           Mail.Hailgun.Internal.Data
-import           Text.Email.Validate
 
 -- | A method to construct a HailgunMessage. You require a subject, content, From address and people
 -- to send the email to and it will give you back a valid Hailgun email message. Or it will error
@@ -21,15 +20,14 @@ hailgunMessage
    -> [Attachment] -- ^ The attachments that you want to attach to the email; standard or inline.
    -> Either HailgunErrorMessage HailgunMessage -- ^ Either an error while trying to create a valid message or a valid message.
 hailgunMessage subject content sender recipients simpleAttachments = do
-   from  <- validate sender
-   to    <- mapM validate (recipientsTo recipients)
-   cc    <- mapM validate (recipientsCC recipients)
-   bcc   <- mapM validate (recipientsBCC recipients)
+   let to  = recipientsTo recipients
+   let cc  = recipientsCC recipients
+   let bcc = recipientsBCC recipients
    attachments <- attachmentsInferredFromMessage content cleanAttachments
    return HailgunMessage
       { messageSubject = subject
       , messageContent = content
-      , messageFrom = from
+      , messageFrom = sender
       , messageTo = to
       , messageCC = cc
       , messageBCC = bcc

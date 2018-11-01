@@ -24,7 +24,6 @@ import           Data.Time.Clock      (UTCTime (..))
 import           Data.Time.Format     (ParseTime (..), parseTime)
 import           Data.Time.LocalTime  (zonedTimeToUTC)
 import qualified Network.HTTP.Client  as NHC
-import qualified Text.Email.Validate  as TEV
 
 #if MIN_VERSION_time(1,5,0)
 import           Data.Time.Format     (defaultTimeLocale)
@@ -79,10 +78,10 @@ data MessageContent
 data HailgunMessage = HailgunMessage
    { messageSubject     :: MessageSubject
    , messageContent     :: MessageContent
-   , messageFrom        :: TEV.EmailAddress
-   , messageTo          :: [TEV.EmailAddress]
-   , messageCC          :: [TEV.EmailAddress]
-   , messageBCC         :: [TEV.EmailAddress]
+   , messageFrom        :: UnverifiedEmailAddress
+   , messageTo          :: [UnverifiedEmailAddress]
+   , messageCC          :: [UnverifiedEmailAddress]
+   , messageBCC         :: [UnverifiedEmailAddress]
    , messageAttachments :: [SpecificAttachment]
    }
    deriving (Show)

@@ -17,8 +17,6 @@ import           Mail.Hailgun.PartUtil
 import           Network.HTTP.Client                   (httpLbs, withManager)
 import qualified Network.HTTP.Client.MultipartFormData as NCM
 import           Network.HTTP.Client.TLS               (tlsManagerSettings)
-import           Text.Email.Validate                   (EmailAddress,
-                                                        toByteString)
 
 -- | Send an email using the Mailgun API's. This method is capable of sending a message over the
 -- Mailgun service. All it needs is the appropriate context.
@@ -41,7 +39,7 @@ toEmailParts message = params ++ attachmentParts
 
 toSimpleEmailParts :: HailgunMessage -> [(BC.ByteString, BC.ByteString)]
 toSimpleEmailParts message =
-   [ (BC.pack "from", toByteString . messageFrom $ message)
+   [ (BC.pack "from", messageFrom message)
    , (BC.pack "subject", T.encodeUtf8 $ messageSubject message)
    ] ++ to
    ++ cc
@@ -56,8 +54,8 @@ toSimpleEmailParts message =
       fromContent t@(TextOnly _) = [ (BC.pack "text", textContent t) ]
       fromContent th@(TextAndHTML {}) = (BC.pack "html", htmlContent th) : fromContent (TextOnly . textContent $ th)
 
-      convertEmails :: BC.ByteString -> [EmailAddress] -> [(BC.ByteString, BC.ByteString)]
-      convertEmails prefix = fmap ((,) prefix . toByteString)
+      convertEmails :: BC.ByteString -> [UnverifiedEmailAddress] -> [(BC.ByteString, BC.ByteString)]
+      convertEmails prefix = fmap ((,) prefix)
 
 -- TODO replace with MailgunSendResponse
 -- | The response to an email being accepted by the Mailgun API.
