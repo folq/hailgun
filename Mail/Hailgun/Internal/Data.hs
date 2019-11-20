@@ -4,6 +4,7 @@ module Mail.Hailgun.Internal.Data
     , HailgunMessage(..)
     , MessageSubject
     , MessageContent(..)
+    , MessageTag
     , UnverifiedEmailAddress
     , MessageRecipients(..)
     , emptyMessageRecipients
@@ -36,6 +37,9 @@ type MessageSubject = T.Text -- ^ Represents a message subject.
 
 -- | A generic error message that is returned by the Hailgun library.
 type HailgunErrorMessage = String
+
+-- | Tag name for tracking purposes
+type MessageTag = T.Text
 
 -- | When comunnicating to the Mailgun service you need to have some common pieces of information to
 -- authenticate successfully. This context encapsulates that required information.
@@ -83,9 +87,9 @@ data HailgunMessage = HailgunMessage
    , messageCC          :: [UnverifiedEmailAddress]
    , messageBCC         :: [UnverifiedEmailAddress]
    , messageAttachments :: [SpecificAttachment]
+   , messageTags        :: [MessageTag]
    }
    deriving (Show)
-   -- TODO o:tag support
    -- TODO o:campaign support
    -- messageDKIMSupport :: Bool TODO o:dkim support
    -- TODO o:deliverytime support for up to three days in the future
