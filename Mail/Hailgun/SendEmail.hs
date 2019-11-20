@@ -44,11 +44,14 @@ toSimpleEmailParts message =
    ] ++ to
    ++ cc
    ++ bcc
+   ++ tags
    ++ fromContent (messageContent message)
    where
       to = convertEmails (BC.pack "to") . messageTo $ message
       cc = convertEmails (BC.pack "cc") . messageCC $ message
       bcc = convertEmails (BC.pack "bcc") . messageBCC $ message
+
+      tags = fmap ((,) (BC.pack "o:tag")) $ fmap T.encodeUtf8 $ messageTags message
 
       fromContent :: MessageContent -> [(BC.ByteString, BC.ByteString)]
       fromContent t@(TextOnly _) = [ (BC.pack "text", textContent t) ]

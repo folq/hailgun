@@ -17,9 +17,10 @@ hailgunMessage
    -> MessageContent -- ^ The full body of the email.
    -> UnverifiedEmailAddress -- ^ The email account that the recipients should respond to in order to get back to us.
    -> MessageRecipients -- ^ The people that should recieve this email.
+   -> [MessageTag] -- ^ The tags you want to be associated with this email, for tracking purposes.
    -> [Attachment] -- ^ The attachments that you want to attach to the email; standard or inline.
    -> Either HailgunErrorMessage HailgunMessage -- ^ Either an error while trying to create a valid message or a valid message.
-hailgunMessage subject content sender recipients simpleAttachments = do
+hailgunMessage subject content sender recipients tags simpleAttachments = do
    let to  = recipientsTo recipients
    let cc  = recipientsCC recipients
    let bcc = recipientsBCC recipients
@@ -31,6 +32,7 @@ hailgunMessage subject content sender recipients simpleAttachments = do
       , messageTo = to
       , messageCC = cc
       , messageBCC = bcc
+      , messageTags = tags
       , messageAttachments = attachments
       }
    where
