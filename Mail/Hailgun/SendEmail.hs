@@ -3,9 +3,9 @@ module Mail.Hailgun.SendEmail
     , HailgunSendResponse(..)
     ) where
 
-import           Control.Applicative
 import           Control.Monad                         (mzero)
 import           Data.Aeson
+import           Data.Aeson.Key
 import qualified Data.ByteString.Char8                 as BC
 import qualified Data.Text                             as T
 import qualified Data.Text.Encoding                    as T
@@ -14,7 +14,7 @@ import           Mail.Hailgun.Errors
 import           Mail.Hailgun.Internal.Data
 import           Mail.Hailgun.MailgunApi
 import           Mail.Hailgun.PartUtil
-import           Network.HTTP.Client                   (httpLbs, withManager)
+import           Network.HTTP.Client                   (httpLbs, newManager)
 import qualified Network.HTTP.Client.MultipartFormData as NCM
 import           Network.HTTP.Client.TLS               (tlsManagerSettings)
 
@@ -26,7 +26,8 @@ sendEmail
    -> IO (Either HailgunErrorResponse HailgunSendResponse) -- ^ The result of the sent email. Either a sent email or a successful send.
 sendEmail context message = do
    request <- postRequest url context (toEmailParts message)
-   response <- withManager tlsManagerSettings (httpLbs request)
+   manager <- newManager tlsManagerSettings
+   response <- httpLbs request manager
    return $ parseResponse response
    where
       url = mailgunApiPrefixContext context ++ "/messages"
@@ -70,7 +71,7 @@ data HailgunSendResponse = HailgunSendResponse
 
 instance FromJSON HailgunSendResponse where
    parseJSON (Object v) = HailgunSendResponse
-      <$> v .: T.pack "message"
-      <*> v .: T.pack "id"
+      <$> v .: fromText (T.pack "message")
+      <*> v .: fromText (T.pack "id")
    parseJSON _ = mzero
 
