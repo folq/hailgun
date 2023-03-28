@@ -46,6 +46,7 @@ type MessageTag = T.Text
 data HailgunContext = HailgunContext
    -- TODO better way to represent a domain
    { hailgunDomain :: String -- ^ The domain of the mailgun account that you wish to send the emails through.
+   , hailgunApiPrefix :: String -- ^ The API prefix to use for mailgun
    , hailgunApiKey :: String -- ^ The API key for the mailgun account so that you can successfully make requests. Please note that it should include the 'key' prefix.
    , hailgunProxy  :: Maybe NHC.Proxy
    }
