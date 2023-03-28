@@ -28,7 +28,7 @@ getDomains context page = do
    response <- withManager tlsManagerSettings (httpLbs request)
    return $ parseResponse response
    where
-      url = mailgunApiPrefix ++ "/domains"
+      url = hailgunApiPrefix context ++ "/domains"
 
 data HailgunDomainResponse = HailgunDomainResponse
    { hdrTotalCount :: Integer
