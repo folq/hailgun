@@ -67,7 +67,7 @@ library
                         , Mail.Hailgun.SendEmail
 
    build-depends:         base
-                        , aeson
+                        , aeson >= 2.0.0.0
                         , bytestring
                         , exceptions
                         , filepath
