@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Mail.Hailgun.Errors
     ( HailgunErrorResponse(..) -- TODO Make it so that herMessage is a hidden detail in the next version
     , toHailgunError
@@ -9,8 +10,6 @@ module Mail.Hailgun.Errors
 
 import           Control.Monad       (mzero)
 import           Data.Aeson
-import           Data.Aeson.Key
-import qualified Data.Text           as T
 
 -- TODO make this Hailgun specific and different for the Mailgun api. That way there is the correct
 -- separation of concerns.
@@ -25,7 +24,7 @@ toHailgunError = HailgunErrorResponse
 
 instance FromJSON HailgunErrorResponse where
    parseJSON (Object v) = HailgunErrorResponse
-      <$> v .: fromText (T.pack "message")
+      <$> v .: "message"
    parseJSON _ = mzero
 
 serverError :: Either HailgunErrorResponse a

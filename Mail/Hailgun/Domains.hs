@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Mail.Hailgun.Domains
     ( getDomains
     , HailgunDomainResponse(..)
@@ -7,7 +8,6 @@ module Mail.Hailgun.Domains
 import           Control.Applicative
 import           Control.Monad              (mzero)
 import           Data.Aeson
-import           Data.Aeson.Key
 import qualified Data.Text                  as T
 import           Mail.Hailgun.Communication
 import           Mail.Hailgun.Errors
@@ -28,7 +28,7 @@ getDomains context page = do
    response <- withManager tlsManagerSettings (httpLbs request)
    return $ parseResponse response
    where
-      url = mailgunApiPrefix ++ "/domains"
+      url = hailgunApiPrefix context ++ "/domains"
 
 data HailgunDomainResponse = HailgunDomainResponse
    { hdrTotalCount :: Integer
@@ -38,8 +38,8 @@ data HailgunDomainResponse = HailgunDomainResponse
 
 instance FromJSON HailgunDomainResponse where
    parseJSON (Object v) = HailgunDomainResponse
-      <$> v .: fromText (T.pack "total_count")
-      <*> v .: fromText (T.pack "items")
+      <$> v .: "total_count"
+      <*> v .: "items"
    parseJSON _ = mzero
 
 data HailgunDomain = HailgunDomain
@@ -54,10 +54,10 @@ data HailgunDomain = HailgunDomain
 
 instance FromJSON HailgunDomain where
    parseJSON (Object v) = HailgunDomain
-      <$> v .: fromText (T.pack "name")
-      <*> v .: fromText (T.pack "smtp_login")
-      <*> v .: fromText (T.pack "smtp_password")
-      <*> v .: fromText (T.pack "created_at")
-      <*> v .: fromText (T.pack "wildcard")
-      <*> v .: fromText (T.pack "spam_action")
+      <$> v .: "name"
+      <*> v .: "smtp_login"
+      <*> v .: "smtp_password"
+      <*> v .: "created_at"
+      <*> v .: "wildcard"
+      <*> v .: "spam_action"
    parseJSON _ = mzero

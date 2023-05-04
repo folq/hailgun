@@ -23,7 +23,6 @@ import qualified Data.ByteString.Lazy as BL
 import qualified Data.Text            as T
 import           Data.Time.Clock      (UTCTime (..))
 import           Data.Time.Format
-import           Data.Time.Format.Internal
 import           Data.Time.LocalTime  (zonedTimeToUTC)
 import qualified Network.HTTP.Client  as NHC
 
@@ -42,6 +41,7 @@ type MessageTag = T.Text
 data HailgunContext = HailgunContext
    -- TODO better way to represent a domain
    { hailgunDomain :: String -- ^ The domain of the mailgun account that you wish to send the emails through.
+   , hailgunApiPrefix :: String -- ^ The API prefix to use for mailgun
    , hailgunApiKey :: String -- ^ The API key for the mailgun account so that you can successfully make requests. Please note that it should include the 'key' prefix.
    , hailgunProxy  :: Maybe NHC.Proxy
    }
@@ -151,9 +151,5 @@ newtype HailgunTime = HailgunTime UTCTime
 instance FromJSON HailgunTime where
    parseJSON = withText "HailgunTime" $ \t ->
       case parseTimeM True defaultTimeLocale "%a, %d %b %Y %T %Z" (T.unpack t) of
-         Just d -> pure d
+         Just d -> pure $ HailgunTime d
          _      -> fail "could not parse Mailgun Style date"
-
-instance ParseTime HailgunTime where
-   parseTimeSpecifier _ = timeParseTimeSpecifier
-   buildTime l input = HailgunTime . zonedTimeToUTC <$> buildTime l input
