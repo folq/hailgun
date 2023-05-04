@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Mail.Hailgun.Domains
     ( getDomains
     , HailgunDomainResponse(..)
@@ -37,8 +38,8 @@ data HailgunDomainResponse = HailgunDomainResponse
 
 instance FromJSON HailgunDomainResponse where
    parseJSON (Object v) = HailgunDomainResponse
-      <$> v .: T.pack "total_count"
-      <*> v .: T.pack "items"
+      <$> v .: "total_count"
+      <*> v .: "items"
    parseJSON _ = mzero
 
 data HailgunDomain = HailgunDomain
@@ -53,10 +54,10 @@ data HailgunDomain = HailgunDomain
 
 instance FromJSON HailgunDomain where
    parseJSON (Object v) = HailgunDomain
-      <$> v .: T.pack "name"
-      <*> v .: T.pack "smtp_login"
-      <*> v .: T.pack "smtp_password"
-      <*> v .: T.pack "created_at"
-      <*> v .: T.pack "wildcard"
-      <*> v .: T.pack "spam_action"
+      <$> v .: "name"
+      <*> v .: "smtp_login"
+      <*> v .: "smtp_password"
+      <*> v .: "created_at"
+      <*> v .: "wildcard"
+      <*> v .: "spam_action"
    parseJSON _ = mzero

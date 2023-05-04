@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Mail.Hailgun.SendEmail
     ( sendEmail
     , HailgunSendResponse(..)
@@ -70,7 +71,7 @@ data HailgunSendResponse = HailgunSendResponse
 
 instance FromJSON HailgunSendResponse where
    parseJSON (Object v) = HailgunSendResponse
-      <$> v .: T.pack "message"
-      <*> v .: T.pack "id"
+      <$> v .: "message"
+      <*> v .: "id"
    parseJSON _ = mzero
 
