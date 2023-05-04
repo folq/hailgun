@@ -49,6 +49,11 @@ extra-source-files:  README.markdown
 -- Constraint on the version of Cabal needed to build this package.
 cabal-version:       >=1.10
 
+Flag NewTime
+   Description: Use version 1.5 of the time library or newer.
+   Default:     True
+
+
 
 library
    exposed-modules:       Mail.Hailgun

@@ -5,14 +5,12 @@ module Mail.Hailgun.Domains
     , HailgunDomain(..)
     ) where
 
-import           Control.Applicative
 import           Control.Monad              (mzero)
 import           Data.Aeson
 import qualified Data.Text                  as T
 import           Mail.Hailgun.Communication
 import           Mail.Hailgun.Errors
 import           Mail.Hailgun.Internal.Data
-import           Mail.Hailgun.MailgunApi
 import           Mail.Hailgun.Pagination
 import           Network.HTTP.Client        (httpLbs, withManager)
 import           Network.HTTP.Client.TLS    (tlsManagerSettings)
