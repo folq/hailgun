@@ -46,7 +46,6 @@ data HailgunDomain = HailgunDomain
    { domainName         :: T.Text
    , domainSmtpLogin    :: String
    , domainSmtpPassword :: String
-   , domainCreatedAt    :: HailgunTime
    , domainWildcard     :: Bool
    , domainSpamAction   :: String -- TODO the domain spam action is probably better specified
    }
@@ -57,7 +56,6 @@ instance FromJSON HailgunDomain where
       <$> v .: fromText (T.pack "name")
       <*> v .: fromText (T.pack "smtp_login")
       <*> v .: fromText (T.pack "smtp_password")
-      <*> v .: fromText (T.pack "created_at")
       <*> v .: fromText (T.pack "wildcard")
       <*> v .: fromText (T.pack "spam_action")
    parseJSON _ = mzero

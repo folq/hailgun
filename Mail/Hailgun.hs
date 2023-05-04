@@ -21,7 +21,6 @@ module Mail.Hailgun
    , Page(..)
    , HailgunDomain(..)
    , HailgunDomainResponse(..)
-   , HailgunTime(..)
    , toProxy
    , Attachment(..)
    , AttachmentBody(..)

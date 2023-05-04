@@ -9,7 +9,6 @@ module Mail.Hailgun.Internal.Data
     , MessageRecipients(..)
     , emptyMessageRecipients
     , HailgunErrorMessage
-    , HailgunTime(..)
     , Attachment(..)
     , SpecificAttachment(..)
     , AttachmentBody(..)
@@ -138,22 +137,3 @@ data MessageRecipients = MessageRecipients
    , recipientsBCC :: [UnverifiedEmailAddress] -- ^ The people to \"Blind Carbon Copy\" into the email. There really needs to be a better name for this too.
    }
    deriving (Show)
-
--- The user should just give us a list of attachments and we should automatically make them inline or not
--- We should consider sending the HTML message as a quoted-string: http://hackage.haskell.org/package/dataenc-0.14.0.5/docs/Codec-Binary-QuotedPrintable.html
--- We should use TagSoup to parse the constructed HTML message so that we can see if any inline images are expected:
-
--- | A wrapper for UTCTime so that we can always pass correctly formatted times to Mailgun.
-newtype HailgunTime = HailgunTime UTCTime
-   deriving (Eq, Ord, Show)
-
--- Example Input: 'Thu, 13 Oct 2011 18:02:00 GMT'
-instance FromJSON HailgunTime where
-   parseJSON = withText "HailgunTime" $ \t ->
-      case parseTimeM True defaultTimeLocale "%a, %d %b %Y %T %Z" (T.unpack t) of
-         Just d -> pure d
-         _      -> fail "could not parse Mailgun Style date"
-
-instance ParseTime HailgunTime where
-   parseTimeSpecifier _ = timeParseTimeSpecifier
-   buildTime l input = HailgunTime . zonedTimeToUTC <$> buildTime l input
